@@ -1,2 +1,4 @@
 .env
 audio_outputs
+uploads
+__pycache__

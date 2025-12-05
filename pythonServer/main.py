@@ -1,26 +1,20 @@
+"""
+Main Flask Application
+Handles API endpoints and routes requests to appropriate services
+"""
+
 import os
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-import asyncio
 import tempfile
+import base64
 
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_groq import ChatGroq
-
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableParallel, RunnablePassthrough
-
-# Additional imports for TTS/STT
-import edge_tts
-import warnings
-warnings.filterwarnings("ignore")
+# Import service modules from components package
+from components import RAGService, AudioService
 
 
-# Load env variables
+# Load environment variables
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -32,213 +26,60 @@ if not GROQ_API_KEY:
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend requests
 
-# Global variables to store the RAG chain
-current_rag_chain = None
+# Initialize services
+rag_service = RAGService(GROQ_API_KEY)
+audio_service = AudioService()
 
 
-# ---------- Embeddings ----------
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2",
-    model_kwargs={"device": "cpu"}
-)
+# ---------- Utility Functions ----------
+
+def create_upload_folder():
+    """Create uploads folder if it doesn't exist"""
+    upload_folder = 'uploads'
+    os.makedirs(upload_folder, exist_ok=True)
+    return upload_folder
 
 
-# ---------- Load + Chunk PDF ----------
-def process_pdf(pdf_path):
-    loader = PyPDFLoader(pdf_path)
-    docs = loader.load()
-
-    splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)
-    chunks = splitter.split_documents(docs)
-
-    print(f"PDF split into {len(chunks)} chunks")
-
-    store = FAISS.from_documents(chunks, embeddings)
-
-    # Improved retriever → better context → fewer "I don't know"
-    retriever = store.as_retriever(
-        search_type="similarity",
-        search_kwargs={"k": 8}
-    )
-
-    return retriever
+def create_audio_folder():
+    """Create audio outputs folder if it doesn't exist"""
+    audio_folder = 'audio_outputs'
+    os.makedirs(audio_folder, exist_ok=True)
+    return audio_folder
 
 
-# ---------- Build RAG Chain ----------
-def build_rag(retriever):
-    llm = ChatGroq(
-        groq_api_key=GROQ_API_KEY,
-        model="llama-3.3-70b-versatile"
-    )
-
-    # Better prompt → fewer "I don't know"
-    prompt = ChatPromptTemplate.from_template("""
-    You are a PDF question-answering assistant.
-
-    Use ONLY the provided context to answer.
-    If the answer is not present in the context, say:
-    "The answer is not available in the document."
-
-    --------------------
-    Context:
-    {context}
-    --------------------
-
-    Question:
-    {question}
-
-    Answer:
-    """)
-
-    # Format retrieved documents into a single string
-    def format_docs(docs):
-        return "\n\n".join(doc.page_content for doc in docs)
-
-    # NEW LangChain 1.x Runnable RAG pipeline
-    rag_chain = (
-        RunnableParallel(
-            {
-                "context": retriever | format_docs,
-                "question": RunnablePassthrough(),
-            }
-        )
-        | prompt
-        | llm
-    )
-
-    return rag_chain
-
-
-# ---------- Language Detection for TTS ----------
-def detect_language(text):
-    """Detect language from text for appropriate TTS voice"""
-    text_lower = text.lower()
-    
-    # Hindi/Indian languages
-    if any(char in text for char in ["नमस्ते", "हिंदी", "भारत", "कृषि", "है", "का", "के"]):
-        return "hi-IN"
-    if any(char in text for char in ["தமிழ்", "வணக்கம்"]):
-        return "ta-IN"
-    if any(char in text for char in ["తెలుగు", "నమస్కారం"]):
-        return "te-IN"
-    if any(char in text for char in ["ગુજરાતી", "નમસ્તે"]):
-        return "gu-IN"
-    if any(char in text for char in ["বাংলা", "নমস্কার"]):
-        return "bn-IN"
-    if any(char in text for char in ["ਪੰਜਾਬੀ", "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ"]):
-        return "pa-IN"
-    
-    # European languages
-    if any(word in text_lower for word in ["bonjour", "français", "merci", "salut"]):
-        return "fr-FR"
-    if any(word in text_lower for word in ["hola", "español", "gracias", "buenos"]):
-        return "es-ES"
-    if any(word in text_lower for word in ["ciao", "italiano", "grazie", "buongiorno"]):
-        return "it-IT"
-    if any(word in text_lower for word in ["hallo", "deutsch", "danke", "guten"]):
-        return "de-DE"
-    if any(word in text_lower for word in ["olá", "português", "obrigado"]):
-        return "pt-PT"
-    
-    # Asian languages
-    if any(char in text for char in ["こんにちは", "日本語", "ありがとう"]):
-        return "ja-JP"
-    if any(char in text for char in ["你好", "中文", "谢谢"]):
-        return "zh-CN"
-    if any(char in text for char in ["안녕하세요", "한국어", "감사합니다"]):
-        return "ko-KR"
-    
-    return "en-US"  # Default
-
-
-# ---------- TTS Generation ----------
-async def generate_tts_audio(text, output_path, language=None):
-    """Generate TTS audio in specified or detected language"""
-    if language is None:
-        language = detect_language(text)
-    
-    # Language-specific voices (560+ languages supported)
-    voices = {
-        # Indian Languages
-        "hi-IN": "hi-IN-SwapnilNeural",
-        "ta-IN": "ta-IN-PallaviNeural",
-        "te-IN": "te-IN-ShrutiNeural",
-        "gu-IN": "gu-IN-DhwaniNeural",
-        "bn-IN": "bn-IN-BashkarNeural",
-        "pa-IN": "pa-IN-GurdasNeural",
-        
-        # European Languages
-        "fr-FR": "fr-FR-DeniseNeural",
-        "es-ES": "es-ES-ElviraNeural",
-        "it-IT": "it-IT-ElsaNeural",
-        "de-DE": "de-DE-KatjaNeural",
-        "pt-PT": "pt-PT-RaquelNeural",
-        
-        # Asian Languages
-        "ja-JP": "ja-JP-NanamiNeural",
-        "zh-CN": "zh-CN-XiaoxiaoNeural",
-        "ko-KR": "ko-KR-SunHiNeural",
-        
-        # Default
-        "en-US": "en-US-AriaNeural"
-    }
-    
-    voice = voices.get(language, "en-US-AriaNeural")
-    
-    try:
-        tts = edge_tts.Communicate(text, voice=voice)
-        await tts.save(output_path)
-        return output_path, language
-    except Exception as e:
-        print(f"TTS error with {voice}, falling back to English: {e}")
-        # Fallback to English
-        tts = edge_tts.Communicate(text, voice="en-US-AriaNeural")
-        await tts.save(output_path)
-        return output_path, "en-US"
-
-
-# ---------- STT using Whisper ----------
-def load_whisper_model():
-    """Load Whisper model for speech-to-text"""
-    try:
-        import whisper
-        return whisper.load_model("base")  # Options: tiny, base, small, medium, large
-    except ImportError:
-        print("Whisper not installed. Install with: pip install openai-whisper")
-        return None
-
-
-# Global Whisper model
-whisper_model = None
-
-
-# ---------- API Endpoints (Original) ----------
+# ---------- API Endpoints ----------
 
 @app.route('/', methods=['GET'])
 def home():
     """Health check endpoint"""
     return jsonify({
         "status": "running",
-        "message": "PDF Chatbot API is working!",
+        "message": "EduSphere PDF Chatbot API is working!",
+        "services": {
+            "rag": "Ready",
+            "audio": "Ready"
+        },
         "endpoints": {
             "health": "GET /",
             "upload": "POST /upload",
             "retrieve": "POST /retrieve",
             "tts": "POST /tts",
             "stt": "POST /stt",
-            "multilingual": "POST /multilingual"
+            "multilingual": "POST /multilingual",
+            "audio": "GET /audio/<filename>"
         }
     }), 200
 
+
+# ---------- RAG Endpoints ----------
 
 @app.route('/upload', methods=['POST'])
 def upload():
     """
     Upload and process a PDF file
     Expects: multipart/form-data with 'file' field
+    Returns: Success message with filename
     """
-    global current_rag_chain
-    
     try:
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
@@ -251,19 +92,17 @@ def upload():
         if not file.filename.endswith('.pdf'):
             return jsonify({"error": "Only PDF files are allowed"}), 400
         
-        # Save the uploaded file temporarily
-        upload_folder = 'uploads'
-        os.makedirs(upload_folder, exist_ok=True)
+        # Save uploaded file temporarily
+        upload_folder = create_upload_folder()
         pdf_path = os.path.join(upload_folder, file.filename)
         file.save(pdf_path)
         
         print(f"Processing PDF: {file.filename}")
         
-        # Process the PDF
-        retriever = process_pdf(pdf_path)
-        current_rag_chain = build_rag(retriever)
+        # Process PDF using RAG service
+        rag_service.upload_and_process(pdf_path)
         
-        # Clean up the uploaded file
+        # Clean up uploaded file
         os.remove(pdf_path)
         
         print(f"PDF processed successfully: {file.filename}")
@@ -284,11 +123,10 @@ def retrieve():
     """
     Retrieve answer based on uploaded PDF
     Expects: JSON with 'question' field
+    Returns: Answer from RAG chain
     """
-    global current_rag_chain
-    
     try:
-        if current_rag_chain is None:
+        if not rag_service.is_ready():
             return jsonify({
                 "error": "No PDF uploaded yet. Please upload a PDF first."
             }), 400
@@ -303,17 +141,13 @@ def retrieve():
         if not question.strip():
             return jsonify({"error": "Question cannot be empty"}), 400
         
-        print(f"Question: {question}")
-        
-        # Get answer from RAG chain
-        answer = current_rag_chain.invoke(question)
-        
-        print(f"Answer: {answer.content}")
+        # Get answer from RAG service
+        answer = rag_service.get_answer(question)
         
         return jsonify({
             "success": True,
             "question": question,
-            "answer": answer.content
+            "answer": answer
         }), 200
         
     except Exception as e:
@@ -321,53 +155,46 @@ def retrieve():
         return jsonify({"error": str(e)}), 500
 
 
-# ---------- NEW API Endpoints (TTS/STT/Multilingual) ----------
+# ---------- Audio Endpoints ----------
 
 @app.route('/tts', methods=['POST'])
 def text_to_speech():
     """
     Convert text to speech
-    Expects: JSON with 'text' and optional 'language' and optional 'inline' (bool).
-    If inline == true -> returns base64 encoded audio in response (audio_base64)
-    Otherwise -> returns audio_url pointing to /audio/<file>
+    Expects: JSON with 'text' and optional 'language' and 'inline' (bool)
+    Returns: Audio URL or base64 encoded audio
     """
     try:
         data = request.get_json()
-
+        
         if not data or 'text' not in data:
             return jsonify({"error": "No text provided"}), 400
-
+        
         text = data['text']
-        language = data.get('language', None)  # Optional: specify language
+        language = data.get('language', None)
         inline = bool(data.get('inline', False))
-
+        
         if not text.strip():
             return jsonify({"error": "Text cannot be empty"}), 400
-
+        
         print(f"TTS Request: {text[:50]}... (Language: {language or 'auto-detect'}, inline={inline})")
-
-        # Generate audio
-        audio_folder = 'audio_outputs'
-        os.makedirs(audio_folder, exist_ok=True)
-
+        
+        # Generate audio using audio service
+        audio_folder = create_audio_folder()
         audio_filename = f"tts_{os.urandom(8).hex()}.mp3"
         audio_path = os.path.join(audio_folder, audio_filename)
-
-        # Generate TTS
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        audio_file, detected_lang = loop.run_until_complete(
-            generate_tts_audio(text, audio_path, language)
+        
+        audio_file, detected_lang = audio_service.text_to_speech(
+            text, audio_path, language
         )
-        loop.close()
-
+        
         print(f"TTS generated: {audio_filename} (Language: {detected_lang})")
-
+        
         if inline:
-            # return base64 audio inline so frontend can play immediately
-            import base64
+            # Return base64 encoded audio
             with open(audio_path, "rb") as f:
                 b64 = base64.b64encode(f.read()).decode("utf-8")
+            
             return jsonify({
                 "success": True,
                 "audio_base64": b64,
@@ -375,15 +202,15 @@ def text_to_speech():
                 "text": text,
                 "audio_url": f"/audio/{audio_filename}"
             }), 200
-
-        # default: return audio_url (file kept on disk)
+        
+        # Return audio URL
         return jsonify({
             "success": True,
             "audio_url": f"/audio/{audio_filename}",
             "detected_language": detected_lang,
             "text": text
         }), 200
-
+        
     except Exception as e:
         print(f"Error in TTS: {str(e)}")
         return jsonify({"error": str(e)}), 500
@@ -394,10 +221,8 @@ def speech_to_text():
     """
     Convert speech to text using Whisper
     Expects: multipart/form-data with 'audio' field
-    Returns: Transcribed text
+    Returns: Transcribed text and detected language
     """
-    global whisper_model
-    
     try:
         if 'audio' not in request.files:
             return jsonify({"error": "No audio file provided"}), 400
@@ -407,13 +232,6 @@ def speech_to_text():
         if audio_file.filename == '':
             return jsonify({"error": "No file selected"}), 400
         
-        # Load Whisper model if not loaded
-        if whisper_model is None:
-            print("Loading Whisper model...")
-            whisper_model = load_whisper_model()
-            if whisper_model is None:
-                return jsonify({"error": "Whisper model not available"}), 500
-        
         # Save audio temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
             audio_file.save(tmp_file.name)
@@ -421,20 +239,18 @@ def speech_to_text():
         
         print(f"Transcribing audio: {audio_file.filename}")
         
-        # Transcribe
-        result = whisper_model.transcribe(tmp_path)
-        transcribed_text = result["text"]
-        detected_language = result.get("language", "unknown")
+        # Transcribe using audio service
+        result = audio_service.speech_to_text(tmp_path)
         
         # Clean up
         os.remove(tmp_path)
         
-        print(f"Transcription: {transcribed_text[:100]}... (Language: {detected_language})")
+        print(f"Transcription: {result['text'][:100]}... (Language: {result['detected_language']})")
         
         return jsonify({
             "success": True,
-            "text": transcribed_text,
-            "detected_language": detected_language
+            "text": result['text'],
+            "detected_language": result['detected_language']
         }), 200
         
     except Exception as e:
@@ -447,7 +263,7 @@ def multilingual_detect():
     """
     Detect language and return language info
     Expects: JSON with 'text' field
-    Returns: Detected language and available voices
+    Returns: Detected language and voice information
     """
     try:
         data = request.get_json()
@@ -460,28 +276,9 @@ def multilingual_detect():
         if not text.strip():
             return jsonify({"error": "Text cannot be empty"}), 400
         
-        detected_lang = detect_language(text)
-        
-        # Available voices info
-        voices_info = {
-            "hi-IN": {"name": "Hindi", "voice": "SwapnilNeural"},
-            "ta-IN": {"name": "Tamil", "voice": "PallaviNeural"},
-            "te-IN": {"name": "Telugu", "voice": "ShrutiNeural"},
-            "gu-IN": {"name": "Gujarati", "voice": "DhwaniNeural"},
-            "bn-IN": {"name": "Bengali", "voice": "BashkarNeural"},
-            "pa-IN": {"name": "Punjabi", "voice": "GurdasNeural"},
-            "fr-FR": {"name": "French", "voice": "DeniseNeural"},
-            "es-ES": {"name": "Spanish", "voice": "ElviraNeural"},
-            "it-IT": {"name": "Italian", "voice": "ElsaNeural"},
-            "de-DE": {"name": "German", "voice": "KatjaNeural"},
-            "pt-PT": {"name": "Portuguese", "voice": "RaquelNeural"},
-            "ja-JP": {"name": "Japanese", "voice": "NanamiNeural"},
-            "zh-CN": {"name": "Chinese", "voice": "XiaoxiaoNeural"},
-            "ko-KR": {"name": "Korean", "voice": "SunHiNeural"},
-            "en-US": {"name": "English", "voice": "AriaNeural"},
-        }
-        
-        language_info = voices_info.get(detected_lang, voices_info["en-US"])
+        # Detect language using audio service
+        detected_lang = audio_service.detect_language(text)
+        language_info = audio_service.get_language_info(detected_lang)
         
         return jsonify({
             "success": True,
@@ -498,7 +295,11 @@ def multilingual_detect():
 
 @app.route('/audio/<filename>', methods=['GET'])
 def serve_audio(filename):
-    """Serve generated audio files"""
+    """
+    Serve generated audio files
+    Args: filename - Audio file name
+    Returns: Audio file
+    """
     try:
         audio_path = os.path.join('audio_outputs', filename)
         
@@ -516,20 +317,39 @@ def serve_audio(filename):
         return jsonify({"error": str(e)}), 500
 
 
+# ---------- Error Handlers ----------
+
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 errors"""
+    return jsonify({"error": "Endpoint not found"}), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    return jsonify({"error": "Internal server error"}), 500
+
+
 # ---------- MAIN ----------
+
 if __name__ == "__main__":
-    print("\n" + "="*60)
-    print("Starting PDF Chatbot API on http://localhost:8000")
-    print("="*60)
-    print("\n📚 Available endpoints:")
+    print("\n" + "="*70)
+    print("🚀 Starting EduSphere PDF Chatbot API on http://localhost:8000")
+    print("="*70)
+    print("\n📚 RAG Endpoints:")
     print("  GET  /              - Health check")
     print("  POST /upload        - Upload and process PDF file")
     print("  POST /retrieve      - Ask questions about uploaded PDF")
-    print("\n🎤 Audio Features:")
+    print("\n🎤 Audio Endpoints:")
     print("  POST /tts           - Text to Speech (560+ languages)")
     print("  POST /stt           - Speech to Text (Whisper)")
     print("  POST /multilingual  - Detect language from text")
     print("  GET  /audio/<file>  - Serve audio files")
-    print("\n" + "="*60 + "\n")
+    print("\n" + "="*70)
+    print("✨ Services initialized:")
+    print(f"  • RAG Service: {'✓' if rag_service else '✗'}")
+    print(f"  • Audio Service: {'✓' if audio_service else '✗'}")
+    print("="*70 + "\n")
     
     app.run(host='0.0.0.0', port=8000, debug=True)
