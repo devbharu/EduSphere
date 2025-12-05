@@ -22,7 +22,7 @@ app.use(cookieParser());
 app.use(cors());
 
 // Public Routes
-app.use("/user", studentRoutes);
+app.use("/api/auth", studentRoutes);
 
 // Protected Sample Route
 app.get("/protected", auth, (req, res) => {
