@@ -8,6 +8,7 @@ import {
     X,
     AlertCircle
 } from 'lucide-react';
+import aiService from '../../../services/aiService';
 
 const ChatAI = () => {
     const [chatHistory, setChatHistory] = useState([]);
@@ -18,6 +19,7 @@ const ChatAI = () => {
     const [uploadedFile, setUploadedFile] = useState(null);
     const [isPdfUploaded, setIsPdfUploaded] = useState(false);
     const fileInputRef = useRef(null);
+    const audioRef = useRef(new Audio());
 
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
@@ -109,6 +111,17 @@ const ChatAI = () => {
         setChatHistory(prev => [...prev, systemMessage]);
     };
 
+    const playInlineTTS = async (text) => {
+        try {
+            const { url } = await aiService.ttsInline(text);
+            audioRef.current.pause();
+            audioRef.current.src = url;
+            await audioRef.current.play();
+        } catch (err) {
+            console.error('TTS play error', err);
+        }
+    };
+
     const handleChatSend = async () => {
         if (!chatInput.trim()) return;
 
@@ -159,6 +172,7 @@ const ChatAI = () => {
                 };
 
                 setChatHistory(prev => [...prev, aiMessage]);
+                await playInlineTTS(result.answer);
             } else {
                 throw new Error('Failed to retrieve answer');
             }
