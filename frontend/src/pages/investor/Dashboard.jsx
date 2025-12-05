@@ -28,8 +28,9 @@ const InvestorDashboard = () => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       // Fetch all startups
-      const allStartupsRes = await axios.get('/api/startUp', config);
-      setStartups(allStartupsRes.data || []);
+      const allStartupsRes = await axios.get('http://localhost:5000/api/startUp', config);
+      setStartups(allStartupsRes.data?.data || []);
+      console.log(allStartupsRes)
 
       setLoading(false);
     } catch (err) {

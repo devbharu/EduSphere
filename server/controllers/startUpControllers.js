@@ -6,7 +6,7 @@ const StartUp = require('../models/startUp');
 async function getMyStartUp(req, res) {
   try {
     const userId = req.user && (req.user.id || req.user._id);
-    console.log(userId)
+    // console.log(userId)
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Unauthenticated' });
     }
@@ -111,6 +111,7 @@ async function updateStartUp(req, res) {
 async function getAllStartUps(req, res) {
   try {
     const startups = await StartUp.find().populate('user', 'name email').sort({ createdAt: -1 });
+    // console.log(startups)
     return res.status(200).json({ success: true, data: startups });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

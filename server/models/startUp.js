@@ -4,7 +4,7 @@ const { Schema } = mongoose;
 const StartUpSchema = new Schema(
   {
     // Reference to the owner/creator user (unique - one startup per user)
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    user: { type: Schema.Types.ObjectId, ref: 'Students', required: true, unique: true },
 
     // Basic startup metadata
     name: { type: String, required: true, trim: true },
