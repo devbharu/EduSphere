@@ -8,9 +8,10 @@ const auth = require("./middleware/auth");
 
 // Routes
 const studentRoutes = require("./routes/user");
-const startUpRoutes = require('./routes/startUpRoutes')
-const chatRoutes = require('./routes/chat')
-const roomRoutes = require('./routes/rooms')
+const startUpRoutes = require('./routes/startUpRoutes');
+const chatRoutes = require('./routes/chat');
+const roomRoutes = require('./routes/rooms');
+const notesRoutes = require("./routes/Notes.js");
 
 // Socket
 const { initSocket } = require("./socket/index");
@@ -33,16 +34,17 @@ app.use(cookieParser());
 
 // Public routes
 app.use("/api/auth", studentRoutes);
-app.use('/api/startUp', startUpRoutes)
+app.use('/api/startUp', startUpRoutes);
 
 // Protected sample route
 app.get("/protected", auth, (req, res) => {
     res.json({ message: "Authenticated ✔", user: req.user });
 });
 
-// Chat & rooms routes
+// Chat, rooms & notes routes
 app.use("/api/chat", chatRoutes);
 app.use("/api/rooms", roomRoutes);
+app.use("/api/notes", notesRoutes); // Registering the notes route
 
 // Base route
 app.get("/", (req, res) => res.send("API is running ✔"));

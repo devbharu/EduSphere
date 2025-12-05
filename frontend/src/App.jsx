@@ -24,7 +24,9 @@ import Materials from './pages/student/Materials';
 import LiveClass from './pages/student/Liveclass';
 import Chat from './pages/student/Chat';
 import DoubtAssistant from './pages/student/DoubtAssistant';
-import StartUpFundRiser from './pages/student/StartUpFundRiser'
+import StartUpFundRiser from './pages/student/StartUpFundRiser';
+import DocsList from './pages/student/Doclist';
+import DocEditor from './pages/student/DocEditor';
 
 // Investor pages
 import InvestorDashboard from './pages/investor/Dashboard';
@@ -141,6 +143,24 @@ function App() {
           element={
             <PrivateRoute allowedRoles={['student']}>
               <StartUpFundRiser />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Docs Routes */}
+        <Route
+          path="/docs"
+          element={
+            <PrivateRoute allowedRoles={['student']}>
+              <DocsList />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/docs/:id"
+          element={
+            <PrivateRoute allowedRoles={['student']}>
+              <DocEditor />
             </PrivateRoute>
           }
         />

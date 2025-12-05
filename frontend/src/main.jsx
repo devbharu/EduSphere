@@ -8,17 +8,20 @@ import './index.css'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { SocketProvider } from './context/SocketContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
-
+import { NotesProvider } from './context/DocContext.jsx'
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <SocketProvider>
-            <App />
-          </SocketProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <NotesProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <SocketProvider>
+              <App />
+            </SocketProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </NotesProvider>
+
     </BrowserRouter>
   </React.StrictMode>,
 )

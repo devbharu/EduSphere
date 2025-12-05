@@ -1,6 +1,5 @@
 /**
- * AuthContext - Manages authentication state globally
- * Handles user login, logout, registration, and JWT token management
+ * AuthContext - Manages authentication state AND Document State globally
  */
 
 import React, { createContext, useState, useEffect, useContext } from 'react';
@@ -12,6 +11,10 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+    // --- New State for Docs ---
+    const [docs, setDocs] = useState([]);
+    const [docsLoading, setDocsLoading] = useState(false);
 
     // Check if user is already logged in (on app load)
     useEffect(() => {
@@ -27,7 +30,6 @@ export const AuthProvider = ({ children }) => {
             if (token && userData) {
                 setUser(JSON.parse(userData));
                 setIsAuthenticated(true);
-
                 // Set default authorization header
                 axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
             }
@@ -39,6 +41,55 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    // --- Document Management Functions ---
+
+    // Fetch all docs for the current user
+    const fetchDocs = async () => {
+        setDocsLoading(true);
+        try {
+            // Adjust endpoint if needed (e.g., /student/docs or /docs/my-docs)
+            const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/docs`);
+
+            // Handle different API response structures ( { data: [] } vs [ ] )
+            const docsData = response.data.data || response.data.docs || response.data;
+
+            if (Array.isArray(docsData)) {
+                setDocs(docsData);
+            } else {
+                setDocs([]);
+                console.warn("API returned non-array for docs:", docsData);
+            }
+        } catch (error) {
+            console.error("Failed to fetch docs:", error);
+        } finally {
+            setDocsLoading(false);
+        }
+    };
+
+    // Delete a doc
+    const deleteDoc = async (id) => {
+        try {
+            await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/docs/${id}`);
+            // Optimistic update: remove from state immediately
+            setDocs((prevDocs) => prevDocs.filter((doc) => doc._id !== id));
+            return true;
+        } catch (error) {
+            console.error("Failed to delete doc:", error);
+            return false;
+        }
+    };
+
+    // Automatically fetch docs when user becomes authenticated
+    useEffect(() => {
+        if (isAuthenticated) {
+            fetchDocs();
+        } else {
+            setDocs([]); // Clear docs on logout
+        }
+    }, [isAuthenticated]);
+
+    // --- Auth Functions ---
+
     // Login function
     const login = async (email, password) => {
         try {
@@ -49,11 +100,8 @@ export const AuthProvider = ({ children }) => {
 
             const { token, user: userData } = response.data;
 
-            // Store token and user data
             localStorage.setItem('token', token);
             localStorage.setItem('user', JSON.stringify(userData));
-
-            // Set authorization header
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
             setUser(userData);
@@ -73,14 +121,10 @@ export const AuthProvider = ({ children }) => {
     const register = async (userData) => {
         try {
             const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/register`, userData);
-
             const { token, user: newUser } = response.data;
 
-            // Store token and user data
             localStorage.setItem('token', token);
             localStorage.setItem('user', JSON.stringify(newUser));
-
-            // Set authorization header
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
             setUser(newUser);
@@ -103,6 +147,7 @@ export const AuthProvider = ({ children }) => {
         delete axios.defaults.headers.common['Authorization'];
         setUser(null);
         setIsAuthenticated(false);
+        setDocs([]); // Clear sensitive data
     };
 
     // Update user profile
@@ -120,6 +165,11 @@ export const AuthProvider = ({ children }) => {
         register,
         logout,
         updateUser,
+        // Docs values exposed here
+        docs,
+        docsLoading,
+        fetchDocs,
+        deleteDoc
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -133,5 +183,8 @@ export const useAuth = () => {
     }
     return context;
 };
+
+// Export useUser as an alias for useAuth to match DocsList imports
+export const useUser = useAuth;
 
 export default AuthContext;
