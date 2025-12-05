@@ -3,15 +3,15 @@ const { Schema } = mongoose;
 
 const StartUpSchema = new Schema(
   {
-    // Reference to the owner/creator user
-    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    // Reference to the owner/creator user (unique - one startup per user)
+    user: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
 
     // Basic startup metadata
     name: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
 
     // Owner Email field
-    ownerName: { type: String,required: true, trim: true},
+    ownerName: { type: String, required: true, trim: true },
     ownerEmail: { type: String, required: true, trim: true },
 
     // Optional extensible metadata

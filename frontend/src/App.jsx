@@ -24,6 +24,7 @@ import Materials from './pages/student/Materials';
 import LiveClass from './pages/student/Liveclass';
 import Chat from './pages/student/Chat';
 import DoubtAssistant from './pages/student/DoubtAssistant';
+import StartUpFundRiser from './pages/student/StartUpFundRiser'
 
 // Investor pages
 import InvestorDashboard from './pages/investor/Dashboard';
@@ -132,6 +133,14 @@ function App() {
           element={
             <PrivateRoute allowedRoles={['student']}>
               <DoubtAssistant />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/startUp-fundRiser"
+          element={
+            <PrivateRoute allowedRoles={['student']}>
+              <StartUpFundRiser />
             </PrivateRoute>
           }
         />

@@ -13,6 +13,9 @@ try {
 // Get all startups (public access)
 router.get('/', ctrl.getAllStartUps);
 
+// Get current user's startup (authenticated)
+router.get('/my-startup', auth, ctrl.getMyStartUp);
+
 // Create a startup (authenticated)
 router.post('/', auth, ctrl.createStartUp);
 
