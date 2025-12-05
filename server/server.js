@@ -8,8 +8,9 @@ const auth = require("./middleware/auth");
 
 // Routes
 const studentRoutes = require("./routes/user");
-const auth = require("./middleware/auth");
 const startUpRoutes = require('./routes/startUpRoutes')
+const chatRoutes = require('./routes/chat')
+const roomRoutes = require('./routes/rooms')
 
 // Socket
 const { initSocket } = require("./socket/index");
