@@ -10,7 +10,7 @@ async function createStartUp(req, res, next) {
     const userId = req.user && (req.user.id || req.user._id);
     if (!userId) return res.status(401).json({ error: 'Unauthenticated' });
 
-    const { name, description, ownerEmail, meta } = req.body;
+    const { name, description,ownerName, ownerEmail, meta } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
     if (!ownerEmail) return res.status(400).json({ error: 'Owner email is required' });
 
@@ -18,6 +18,7 @@ async function createStartUp(req, res, next) {
       user: userId,
       name,
       description,
+      ownerName,
       ownerEmail,
       meta
     });
@@ -47,9 +48,10 @@ async function updateStartUp(req, res, next) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const { name, description, ownerEmail, meta } = req.body;
+    const { name, description,ownerName, ownerEmail, meta } = req.body;
     if (name !== undefined) startup.name = name;
     if (description !== undefined) startup.description = description;
+    if (ownerName !== undefined) startup.ownerName = ownerName;
     if (ownerEmail !== undefined) startup.ownerEmail = ownerEmail;
     if (meta !== undefined) startup.meta = meta;
 

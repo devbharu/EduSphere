@@ -38,20 +38,9 @@ const InvestorDashboard = () => {
     }
   };
 
-  const handleViewDetails = async (startup) => {
-    try {
-      const token = localStorage.getItem('token');
-      const config = { headers: { Authorization: `Bearer ${token}` } };
-      
-      // Fetch detailed startup info
-      const response = await axios.get(`/api/startUp/${startup.id || startup._id}`, config);
-      setSelectedStartup(response.data);
-      setShowModal(true);
-    } catch (err) {
-      console.error('Failed to fetch startup details:', err);
-      setSelectedStartup(startup);
-      setShowModal(true);
-    }
+  const handleViewDetails = (startup) => {
+    setSelectedStartup(startup);
+    setShowModal(true);
   };
 
   const handleContact = () => {
@@ -370,7 +359,7 @@ const InvestorDashboard = () => {
                   <div className="flex items-center gap-3">
                     <User size={18} className="text-blue-600" />
                     <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
-                      {selectedStartup.user?.name || 'N/A'}
+                      {selectedStartup.ownerName || 'Nsdafaf/A'}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
@@ -462,4 +451,4 @@ const InvestorDashboard = () => {
   );
 };
 
-export default InvestorDashboard;
+export default InvestorDashboard

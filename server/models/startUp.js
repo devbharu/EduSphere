@@ -11,6 +11,7 @@ const StartUpSchema = new Schema(
     description: { type: String, trim: true },
 
     // Owner Email field
+    ownerName: { type: String,required: true, trim: true},
     ownerEmail: { type: String, required: true, trim: true },
 
     // Optional extensible metadata
