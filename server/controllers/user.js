@@ -86,4 +86,50 @@ const signIn = async (req, res) => {
     }
 };
 
-module.exports = { signUp, signIn };
+// 📌 GET USER PROFILE
+const getProfile = async (req, res) => {
+    try {
+        const user = await Student.findById(req.user.id).select("-password");
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({
+            message: "User profile fetched",
+            user
+        });
+    } catch (error) {
+        console.error("Profile Error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// 📌 UPDATE USER DETAILS
+const updateProfile = async (req, res) => {
+    try {
+        const { name, role } = req.body;
+
+        const updatedUser = await Student.findByIdAndUpdate(
+            req.user.id,
+            { name, role },
+            { new: true }
+        ).select("-password");
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({
+            message: "Profile updated successfully",
+            user: updatedUser
+        });
+    } catch (error) {
+        console.error("Update Error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+
+module.exports = { signUp, signIn, getProfile, updateProfile };
+

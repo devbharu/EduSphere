@@ -4,31 +4,42 @@ const cookieParser = require("cookie-parser");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 
-// Import routes
+// Routes
 const studentRoutes = require("./routes/user");
+const auth = require("./middleware/auth");
+
+// SOCKET
+const http = require("http");
+const { initSocket } = require("./socket/index");
 
 dotenv.config();
 const app = express();
+const server = http.createServer(app); // <-- IMPORTANT
 
-// Middleware
+// Middlewares
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    credentials: true
-}));
+app.use(cors());
 
-// Routes
+// Public Routes
 app.use("/user", studentRoutes);
 
-// Test Route
+// Protected Sample Route
+app.get("/protected", auth, (req, res) => {
+    res.json({ message: "Authenticated ✔", user: req.user });
+});
+
+// Base Route
 app.get("/", (req, res) => {
     res.send("API is running ✔");
 });
 
-// Connect DB
+// DB connect
 connectDB();
 
-// Server Listen
+// Start server
 const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+
+// SOCKET INITIALIZE
+initSocket(server);
