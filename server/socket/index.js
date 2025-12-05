@@ -1,72 +1,110 @@
-// socket/index.js
 const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
+const mongoose = require("mongoose");
+const Message = require("../models/messages");
+const User = require("../models/user");
 
 let io;
 
 const initSocket = (server) => {
     io = new Server(server, {
         cors: {
-            origin: "*", // or your frontend URL
-            methods: ["GET", "POST"]
-        }
+            origin: "*", // Allow all origins (Update this for production)
+            methods: ["GET", "POST"],
+        },
+        transports: ["websocket", "polling"],
     });
 
-    // SOCKET AUTH + CONNECTION
-    io.use((socket, next) => {
+    // --- MIDDLEWARE: AUTHENTICATION ---
+    io.use(async (socket, next) => {
         const token = socket.handshake.auth?.token;
-
-        if (!token) {
-            console.log("❌ No token provided");
-            return next(new Error("Authentication error"));
-        }
+        if (!token) return next(new Error("Authentication error: No token provided"));
 
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            socket.user = decoded; // { id, role }
-            socket.join(decoded.id); // JOIN personal user room
+
+            // Fetch User to ensure we have the Name
+            const user = await User.findById(decoded.id || decoded._id).select("name _id");
+
+            if (!user) {
+                return next(new Error("User not found"));
+            }
+
+            // Attach user info to socket session
+            socket.user = {
+                id: user._id.toString(), // Convert to string for consistency
+                name: user.name
+            };
+
             next();
         } catch (err) {
-            console.log("❌ Invalid token", err.message);
-            return next(new Error("Authentication error"));
+            console.error("Socket Auth Error:", err.message);
+            return next(new Error("Authentication error: Invalid token"));
         }
     });
 
+    // --- CONNECTION ---
     io.on("connection", (socket) => {
-        console.log(`✅ User Connected: ${socket.user.id} | Socket ID: ${socket.id}`);
+        console.log(`✅ Connected: ${socket.user.name} (${socket.id})`);
 
-        // LISTEN for events
-        socket.on("send_message", (data) => {
-            console.log("📨 Message received:", data);
+        // 1. JOIN ROOM
+        socket.on("join_room", async ({ roomId }) => {
+            if (!roomId || !mongoose.Types.ObjectId.isValid(roomId)) {
+                console.error(`Invalid Room ID: ${roomId}`);
+                return;
+            }
 
-            // Send to specific user
-            if (data.to) {
-                io.to(data.to).emit("receive_message", {
-                    from: socket.user.id,
-                    message: data.message,
-                });
+            // Join the specific room channel
+            socket.join(roomId);
+            console.log(`👥 ${socket.user.name} joined room: ${roomId}`);
+
+            // Fetch and emit chat history
+            try {
+                const messages = await Message.find({ roomId }).sort({ createdAt: 1 });
+                socket.emit("chat_history", messages);
+            } catch (err) {
+                console.error("History error:", err);
+                socket.emit("chat_history", []);
             }
         });
 
-        // NOTIFICATION EVENT
-        socket.on("notify", (data) => {
-            console.log("🔔 Sending notification:", data);
-            io.to(data.to).emit("notification", {
-                title: data.title,
-                content: data.content,
-                from: socket.user.id
-            });
+        // 2. SEND MESSAGE
+        socket.on("send_message", async ({ roomId, message }) => {
+            if (!message || !mongoose.Types.ObjectId.isValid(roomId)) return;
+
+            console.log(`📩 ${socket.user.name} sent to ${roomId}: ${message}`);
+
+            try {
+                // Save to Database
+                const newMessage = await Message.create({
+                    roomId,
+                    senderId: socket.user.id,
+                    senderName: socket.user.name,
+                    message,
+                });
+
+                // Broadcast to EVERYONE in the room (including sender)
+                io.in(roomId).emit("receive_message", newMessage);
+
+            } catch (err) {
+                console.error("Message save error:", err);
+            }
         });
 
-        // DISCONNECT
         socket.on("disconnect", () => {
-            console.log(`❌ Socket Disconnected: ${socket.id}`);
+            console.log(`❌ Disconnected: ${socket.user.name}`);
         });
     });
 
     return io;
 };
 
-const getIO = () => io;
+// Export getIO so routes/rooms.js can use it for 'room_added' events
+const getIO = () => {
+    if (!io) {
+        throw new Error("Socket.io not initialized!");
+    }
+    return io;
+};
 
 module.exports = { initSocket, getIO };

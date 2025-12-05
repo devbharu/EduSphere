@@ -1,9 +1,4 @@
-/**
- * SocketContext - Manages WebSocket connection globally
- * Handles real-time chat, notifications, and live updates
- */
-
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
@@ -14,97 +9,91 @@ export const SocketProvider = ({ children }) => {
     const [connected, setConnected] = useState(false);
     const { user, isAuthenticated } = useAuth();
 
+    // Ensure this matches your server port
+    const SOCKET_URL = "http://localhost:5000";
+
     useEffect(() => {
-        // Only connect socket if user is authenticated
+        let newSocket;
+
         if (isAuthenticated && user) {
-            connectSocket();
-        } else {
-            disconnectSocket();
+            const token = localStorage.getItem("token");
+
+            // Initialize Socket
+            newSocket = io(SOCKET_URL, {
+                auth: { token },
+                transports: ['websocket', 'polling'],
+                reconnection: true,
+                reconnectionAttempts: 5,
+            });
+
+            newSocket.on('connect', () => {
+                console.log("✅ Socket connected:", newSocket.id);
+                setConnected(true);
+            });
+
+            newSocket.on('connect_error', (err) => {
+                console.error("❌ Socket Connection Error:", err.message);
+                setConnected(false);
+            });
+
+            newSocket.on('disconnect', () => {
+                console.log("⚠️ Socket disconnected");
+                setConnected(false);
+            });
+
+            setSocket(newSocket);
         }
 
-        // Cleanup on unmount
+        // Cleanup function (Runs on logout or unmount)
         return () => {
-            disconnectSocket();
+            if (newSocket) {
+                newSocket.disconnect();
+                setSocket(null);
+                setConnected(false);
+            }
         };
     }, [isAuthenticated, user]);
 
-    // Connect to socket server
-    const connectSocket = () => {
-        const newSocket = io(import.meta.env.VITE_SOCKET_URL, {
-            auth: {
-                token: localStorage.getItem('token'),
-                userId: user?.id || user?._id,
-            },
-            transports: ['websocket', 'polling'],
-        });
+    // --- Socket Emitters (Wrapped in useCallback to prevent re-renders) ---
+    const joinRoom = useCallback((roomId) => {
+        if (socket && connected) socket.emit("join_room", { roomId });
+    }, [socket, connected]);
 
-        // Socket event listeners
-        newSocket.on('connect', () => {
-            console.log('✅ Socket connected:', newSocket.id);
-            setConnected(true);
-        });
+    const sendMessage = useCallback((roomId, message) => {
+        if (socket && connected) socket.emit("send_message", { roomId, message });
+    }, [socket, connected]);
 
-        newSocket.on('disconnect', () => {
-            console.log('❌ Socket disconnected');
-            setConnected(false);
-        });
+    // --- Event Listeners (Wrapped in useCallback) ---
+    const onChatHistory = useCallback((cb) => socket?.on("chat_history", cb), [socket]);
+    const offChatHistory = useCallback((cb) => socket?.off("chat_history", cb), [socket]);
 
-        newSocket.on('error', (error) => {
-            console.error('Socket error:', error);
-        });
+    const onReceiveMessage = useCallback((cb) => socket?.on("receive_message", cb), [socket]);
+    const offReceiveMessage = useCallback((cb) => socket?.off("receive_message", cb), [socket]);
 
-        setSocket(newSocket);
-    };
+    const onRoomAdded = useCallback((cb) => socket?.on("room_added", cb), [socket]);
+    const offRoomAdded = useCallback((cb) => socket?.off("room_added", cb), [socket]);
 
-    // Disconnect socket
-    const disconnectSocket = () => {
-        if (socket) {
-            socket.disconnect();
-            setSocket(null);
-            setConnected(false);
-        }
-    };
-
-    // Emit event to server
-    const emit = (event, data) => {
-        if (socket && connected) {
-            socket.emit(event, data);
-        } else {
-            console.warn('Socket not connected. Cannot emit:', event);
-        }
-    };
-
-    // Listen to event from server
-    const on = (event, callback) => {
-        if (socket) {
-            socket.on(event, callback);
-        }
-    };
-
-    // Remove event listener
-    const off = (event, callback) => {
-        if (socket) {
-            socket.off(event, callback);
-        }
-    };
-
-    const value = {
-        socket,
-        connected,
-        emit,
-        on,
-        off,
-    };
-
-    return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
+    return (
+        <SocketContext.Provider value={{
+            socket,
+            connected,
+            joinRoom,
+            sendMessage,
+            onChatHistory,
+            offChatHistory,
+            onReceiveMessage,
+            offReceiveMessage,
+            onRoomAdded,
+            offRoomAdded
+        }}>
+            {children}
+        </SocketContext.Provider>
+    );
 };
 
-// Custom hook to use socket context
 export const useSocket = () => {
     const context = useContext(SocketContext);
-    if (!context) {
-        throw new Error('useSocket must be used within SocketProvider');
-    }
+    if (!context) throw new Error("useSocket must be used inside SocketProvider");
     return context;
 };
 
