@@ -11,7 +11,7 @@ import tempfile
 import base64
 
 # Import service modules from components package
-from components import RAGService, AudioService
+from components import RAGService, AudioService, OCRService
 
 
 # Load environment variables
@@ -29,6 +29,7 @@ CORS(app)  # Enable CORS for frontend requests
 # Initialize services
 rag_service = RAGService(GROQ_API_KEY)
 audio_service = AudioService()
+ocr_service = OCRService(GROQ_API_KEY)
 
 
 # ---------- Utility Functions ----------
@@ -57,7 +58,8 @@ def home():
         "message": "EduSphere PDF Chatbot API is working!",
         "services": {
             "rag": "Ready",
-            "audio": "Ready"
+            "audio": "Ready",
+            "ocr": "Ready"
         },
         "endpoints": {
             "health": "GET /",
@@ -66,7 +68,8 @@ def home():
             "tts": "POST /tts",
             "stt": "POST /stt",
             "multilingual": "POST /multilingual",
-            "audio": "GET /audio/<filename>"
+            "audio": "GET /audio/<filename>",
+            "ocr_extract": "POST /ocr/extract"
         }
     }), 200
 
@@ -317,6 +320,73 @@ def serve_audio(filename):
         return jsonify({"error": str(e)}), 500
 
 
+# ---------- OCR Endpoint ----------
+
+@app.route('/ocr/extract', methods=['POST'])
+def ocr_extract_and_solve():
+    """
+    Extract text from image and answer user's question
+    Expects: multipart/form-data with 'image' field and 'query' field
+    Returns: Extracted text and AI-generated answer
+    """
+    try:
+        if 'image' not in request.files:
+            return jsonify({"error": "No image file provided"}), 400
+        
+        image_file = request.files['image']
+        
+        if image_file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        # Validate image file type
+        allowed_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp'}
+        file_ext = os.path.splitext(image_file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            return jsonify({"error": "Invalid image format. Allowed: JPG, PNG, BMP, TIFF, WEBP"}), 400
+        
+        # Get query from form data
+        query = request.form.get('query', '')
+        
+        if not query.strip():
+            return jsonify({"error": "Query cannot be empty"}), 400
+        
+        # Get languages (default: English and Hindi)
+        languages = request.form.get('languages', 'en,hi').split(',')
+        languages = [lang.strip() for lang in languages]
+        
+        # Save image temporarily
+        upload_folder = create_upload_folder()
+        image_path = os.path.join(upload_folder, image_file.filename)
+        image_file.save(image_path)
+        
+        print(f"Processing image: {image_file.filename}")
+        print(f"Query: {query}")
+        print(f"Using languages: {languages}")
+        
+        # Process image and get answer
+        result = ocr_service.process_image_and_question(
+            image_path, 
+            query, 
+            languages
+        )
+        
+        # Clean up
+        os.remove(image_path)
+        
+        return jsonify({
+            "success": True,
+            "query": query,
+            "extracted_text": result["extracted_text"],
+            "answer": result["answer"],
+            "filename": image_file.filename,
+            "languages_used": languages
+        }), 200
+        
+    except Exception as e:
+        print(f"Error in OCR extraction: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 # ---------- Error Handlers ----------
 
 @app.errorhandler(404)
@@ -346,10 +416,13 @@ if __name__ == "__main__":
     print("  POST /stt           - Speech to Text (Whisper)")
     print("  POST /multilingual  - Detect language from text")
     print("  GET  /audio/<file>  - Serve audio files")
+    print("\n🔍 OCR Endpoint:")
+    print("  POST /ocr/extract   - Extract text from image and answer query")
     print("\n" + "="*70)
     print("✨ Services initialized:")
     print(f"  • RAG Service: {'✓' if rag_service else '✗'}")
     print(f"  • Audio Service: {'✓' if audio_service else '✗'}")
+    print(f"  • OCR Service: {'✓' if ocr_service else '✗'}")
     print("="*70 + "\n")
     
     app.run(host='0.0.0.0', port=8000, debug=True)
