@@ -15,6 +15,7 @@ const UploadSolve = () => {
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
     const [query, setQuery] = useState('');
+    const [extractedText, setExtractedText] = useState('');
     const [aiResponse, setAiResponse] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -103,61 +104,42 @@ const UploadSolve = () => {
         setLoading(true);
         setError('');
         setAiResponse('');
+        setExtractedText('');
 
         try {
-            const base64Data = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result.split(',')[1]);
-                reader.onerror = () => reject(new Error('Failed to read image'));
-                reader.readAsDataURL(imageFile);
-            });
+            // Create FormData for multipart/form-data request
+            const formData = new FormData();
+            formData.append('image', imageFile);
+            formData.append('query', query);
+            formData.append('languages', 'en,hi'); // Default languages
 
-            const response = await fetch("https://api.anthropic.com/v1/messages", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    model: "claude-sonnet-4-20250514",
-                    max_tokens: 1000,
-                    messages: [
-                        {
-                            role: "user",
-                            content: [
-                                {
-                                    type: "image",
-                                    source: {
-                                        type: "base64",
-                                        media_type: imageFile.type,
-                                        data: base64Data
-                                    }
-                                },
-                                {
-                                    type: "text",
-                                    text: query
-                                }
-                            ]
-                        }
-                    ]
-                })
+            console.log('Sending request to OCR API...');
+
+            // Send request to backend
+            const response = await fetch('http://localhost:8000/ocr/extract', {
+                method: 'POST',
+                body: formData,
             });
 
             if (!response.ok) {
-                throw new Error(`API error: ${response.status} ${response.statusText}`);
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `API error: ${response.status} ${response.statusText}`);
             }
 
             const data = await response.json();
-            
-            const responseText = data.content
-                .filter(item => item.type === "text")
-                .map(item => item.text)
-                .join("\n\n");
 
-            if (!responseText) {
-                throw new Error('No response received from AI');
+            console.log('OCR API Response:', data);
+
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to process image');
             }
 
-            setAiResponse(responseText);
+            // Set extracted text and AI answer
+            setExtractedText(data.extracted_text || '');
+            setAiResponse(data.answer || '');
+
+            console.log('Extracted text:', data.extracted_text);
+            console.log('AI Answer:', data.answer);
 
         } catch (err) {
             console.error('Error:', err);
@@ -171,6 +153,7 @@ const UploadSolve = () => {
         setImageFile(null);
         setImagePreview(null);
         setQuery('');
+        setExtractedText('');
         setAiResponse('');
         setError('');
     };
@@ -217,6 +200,7 @@ const UploadSolve = () => {
                 </div>
 
                 <div className="space-y-6">
+                    {/* Image Upload Section */}
                     <div className={`rounded-2xl border-2 overflow-hidden transition-all duration-300 ${
                         theme === 'dark'
                             ? 'bg-gray-800/50 border-gray-700'
@@ -299,6 +283,7 @@ const UploadSolve = () => {
                         </div>
                     </div>
 
+                    {/* Query Input Section */}
                     <div className={`rounded-2xl border-2 overflow-hidden transition-all duration-300 ${
                         theme === 'dark'
                             ? 'bg-gray-800/50 border-gray-700'
@@ -334,6 +319,7 @@ const UploadSolve = () => {
                         </div>
                     </div>
 
+                    {/* Error Message */}
                     {error && (
                         <div className={`rounded-xl border-l-4 px-5 py-4 animate-fade-in ${
                             theme === 'dark'
@@ -347,6 +333,7 @@ const UploadSolve = () => {
                         </div>
                     )}
 
+                    {/* Action Buttons */}
                     <div className="flex items-center gap-4">
                         <button
                             type="button"
@@ -387,6 +374,36 @@ const UploadSolve = () => {
                     </div>
                 </div>
 
+                {/* Extracted Text Section */}
+                {extractedText && (
+                    <div className={`mt-8 rounded-2xl border-2 overflow-hidden animate-fade-in ${
+                        theme === 'dark'
+                            ? 'bg-gradient-to-br from-blue-900/30 to-cyan-900/30 border-blue-500/30'
+                            : 'bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200'
+                    }`}>
+                        <div className="p-6">
+                            <div className="flex items-center gap-2 mb-4">
+                                <ImageLucide className={theme === 'dark' ? 'text-blue-400' : 'text-blue-600'} size={24} />
+                                <h3 className={`text-xl font-bold ${
+                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                }`}>
+                                    Extracted Text from Image
+                                </h3>
+                            </div>
+                            <div className={`rounded-xl p-5 ${
+                                theme === 'dark' ? 'bg-gray-800/50' : 'bg-white'
+                            }`}>
+                                <p className={`whitespace-pre-line leading-relaxed ${
+                                    theme === 'dark' ? 'text-gray-300' : 'text-gray-800'
+                                }`}>
+                                    {extractedText}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* AI Response Section */}
                 {aiResponse && (
                     <div className={`mt-8 rounded-2xl border-2 overflow-hidden animate-fade-in ${
                         theme === 'dark'
@@ -415,6 +432,7 @@ const UploadSolve = () => {
                     </div>
                 )}
 
+                {/* How it Works Section */}
                 <div className={`mt-8 p-5 border rounded-xl ${
                     theme === 'dark'
                         ? 'bg-gradient-to-br from-blue-900/20 to-indigo-900/20 border-blue-500/30'
@@ -438,11 +456,11 @@ const UploadSolve = () => {
                         </li>
                         <li className="flex items-start gap-2">
                             <span className={theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}>3.</span>
-                            <span>Our AI will analyze the image and provide a detailed solution</span>
+                            <span>Our AI will extract text using OCR and analyze the image</span>
                         </li>
                         <li className="flex items-start gap-2">
                             <span className={theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}>4.</span>
-                            <span>Get step-by-step explanations and learning resources</span>
+                            <span>Get step-by-step explanations powered by advanced AI</span>
                         </li>
                     </ul>
                 </div>
