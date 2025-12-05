@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Upload,
     X,
@@ -19,6 +19,12 @@ const UploadSolve = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [dragActive, setDragActive] = useState(false);
+
+    // Fetch theme from localStorage on component mount
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        setTheme(savedTheme);
+    }, []);
 
     const handleFileSelect = (file) => {
         if (!file) return;
@@ -195,19 +201,6 @@ const UploadSolve = () => {
                     animation: spin 1s linear infinite;
                 }
             `}</style>
-            
-            <div className="fixed top-4 right-4 z-50">
-                <button
-                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                    className={`p-3 rounded-full shadow-lg transition-all duration-200 ${
-                        theme === 'dark'
-                            ? 'bg-gray-800 text-yellow-400 hover:bg-gray-700'
-                            : 'bg-white text-gray-700 hover:bg-gray-100'
-                    }`}
-                >
-                    {theme === 'dark' ? '☀️' : '🌙'}
-                </button>
-            </div>
 
             <div className="max-w-4xl mx-auto px-4 py-8">
                 <div className="mb-8">

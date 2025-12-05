@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     Send,
     Loader,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 const ChatAI = () => {
+    const [theme, setTheme] = useState('light');
     const [chatHistory, setChatHistory] = useState([]);
     const [chatInput, setChatInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -22,6 +23,12 @@ const ChatAI = () => {
     const [enableTTS, setEnableTTS] = useState(false);
     const fileInputRef = useRef(null);
     const audioRef = useRef(new Audio());
+
+    // Fetch theme from localStorage on component mount
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        setTheme(savedTheme);
+    }, []);
 
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
@@ -246,34 +253,77 @@ const ChatAI = () => {
 
     return (
         <div className="max-w-4xl mx-auto relative">
+            <style>{`
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                .animate-spin {
+                    animation: spin 1s linear infinite;
+                }
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                }
+                .animate-pulse {
+                    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+                }
+            `}</style>
+
             {/* Upload Loading Overlay */}
             {uploadLoading && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 max-w-sm mx-4">
+                    <div className={`rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 max-w-sm mx-4 ${
+                        theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+                    }`}>
                         <Loader className="animate-spin text-purple-600" size={48} />
                         <div className="text-center">
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">Uploading PDF...</h3>
-                            <p className="text-sm text-gray-600">
+                            <h3 className={`text-xl font-bold mb-2 ${
+                                theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>
+                                Uploading PDF...
+                            </h3>
+                            <p className={`text-sm ${
+                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
                                 Please wait while we process your document
                             </p>
-                            <p className="text-xs text-gray-500 mt-2">
+                            <p className={`text-xs mt-2 ${
+                                theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                            }`}>
                                 {uploadedFile?.name}
                             </p>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div className={`w-full rounded-full h-2 overflow-hidden ${
+                            theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                        }`}>
                             <div className="bg-purple-600 h-full rounded-full animate-pulse"></div>
                         </div>
                     </div>
                 </div>
             )}
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-[600px]">
+            <div className={`rounded-xl shadow-sm border flex flex-col h-[600px] ${
+                theme === 'dark' 
+                    ? 'bg-gray-800 border-gray-700' 
+                    : 'bg-white border-gray-200'
+            }`}>
                 {/* Chat Header */}
-                <div className="p-4 border-b border-gray-200">
+                <div className={`p-4 border-b ${
+                    theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                }`}>
                     <div className="flex items-center justify-between mb-2">
                         <div>
-                            <h2 className="text-xl font-bold text-gray-900">Chat with AI Assistant</h2>
-                            <p className="text-sm text-gray-600">Upload a PDF and ask questions about it</p>
+                            <h2 className={`text-xl font-bold ${
+                                theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>
+                                Chat with AI Assistant
+                            </h2>
+                            <p className={`text-sm ${
+                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
+                                Upload a PDF and ask questions about it
+                            </p>
                         </div>
 
                         {/* TTS Toggle Button */}
@@ -282,7 +332,9 @@ const ChatAI = () => {
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
                                 enableTTS
                                     ? 'bg-purple-600 text-white shadow-md'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    : theme === 'dark'
+                                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                             title={enableTTS ? 'TTS Enabled' : 'TTS Disabled'}
                         >
@@ -295,9 +347,17 @@ const ChatAI = () => {
                     
                     {/* Uploaded File Indicator */}
                     {uploadedFile && (
-                        <div className="mt-3 flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+                        <div className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 border ${
+                            theme === 'dark'
+                                ? 'bg-purple-900/20 border-purple-500/30'
+                                : 'bg-purple-50 border-purple-200'
+                        }`}>
                             <FileText className="text-purple-600" size={16} />
-                            <span className="text-sm text-purple-900 flex-1 truncate">{uploadedFile.name}</span>
+                            <span className={`text-sm flex-1 truncate ${
+                                theme === 'dark' ? 'text-purple-300' : 'text-purple-900'
+                            }`}>
+                                {uploadedFile.name}
+                            </span>
                             {isPdfUploaded && (
                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
                                     Ready
@@ -315,17 +375,31 @@ const ChatAI = () => {
 
                     {/* Warning if no PDF uploaded */}
                     {!isPdfUploaded && !uploadLoading && (
-                        <div className="mt-3 flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                        <div className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 border ${
+                            theme === 'dark'
+                                ? 'bg-yellow-900/20 border-yellow-500/30'
+                                : 'bg-yellow-50 border-yellow-200'
+                        }`}>
                             <AlertCircle className="text-yellow-600" size={16} />
-                            <span className="text-xs text-yellow-900">Please upload a PDF file to start chatting</span>
+                            <span className={`text-xs ${
+                                theme === 'dark' ? 'text-yellow-300' : 'text-yellow-900'
+                            }`}>
+                                Please upload a PDF file to start chatting
+                            </span>
                         </div>
                     )}
 
                     {/* TTS Status */}
                     {enableTTS && isPdfUploaded && (
-                        <div className="mt-2 flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+                        <div className={`mt-2 flex items-center gap-2 rounded-lg px-3 py-2 border ${
+                            theme === 'dark'
+                                ? 'bg-purple-900/20 border-purple-500/30'
+                                : 'bg-purple-50 border-purple-200'
+                        }`}>
                             <Volume2 className="text-purple-600" size={14} />
-                            <span className="text-xs text-purple-900">
+                            <span className={`text-xs ${
+                                theme === 'dark' ? 'text-purple-300' : 'text-purple-900'
+                            }`}>
                                 🌍 Multilingual TTS enabled - AI responses will be spoken automatically
                             </span>
                         </div>
@@ -337,9 +411,21 @@ const ChatAI = () => {
                     {chatHistory.length === 0 && (
                         <div className="text-center py-12">
                             <Sparkles className="mx-auto text-purple-600 mb-4" size={48} />
-                            <p className="text-gray-600 mb-2">Start a conversation with AI</p>
-                            <p className="text-sm text-gray-500">Upload a PDF and ask questions about it!</p>
-                            <p className="text-xs text-gray-400 mt-2">🎤 Enable TTS for voice responses</p>
+                            <p className={`mb-2 ${
+                                theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                            }`}>
+                                Start a conversation with AI
+                            </p>
+                            <p className={`text-sm ${
+                                theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                            }`}>
+                                Upload a PDF and ask questions about it!
+                            </p>
+                            <p className={`text-xs mt-2 ${
+                                theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
+                            }`}>
+                                🎤 Enable TTS for voice responses
+                            </p>
                         </div>
                     )}
 
@@ -362,8 +448,12 @@ const ChatAI = () => {
                                         msg.sender === 'user'
                                             ? 'bg-purple-600 text-white'
                                             : msg.sender === 'system'
-                                            ? 'bg-blue-50 text-blue-900 border border-blue-200'
-                                            : 'bg-gray-100 text-gray-900'
+                                            ? theme === 'dark'
+                                                ? 'bg-blue-900/30 text-blue-300 border border-blue-500/30'
+                                                : 'bg-blue-50 text-blue-900 border border-blue-200'
+                                            : theme === 'dark'
+                                                ? 'bg-gray-700 text-gray-100'
+                                                : 'bg-gray-100 text-gray-900'
                                     }`}
                                 >
                                     <p className="whitespace-pre-line">{msg.message}</p>
@@ -372,7 +462,11 @@ const ChatAI = () => {
                                     {msg.sender === 'ai' && (
                                         <button
                                             onClick={() => convertTextToSpeech(msg.message)}
-                                            className="mt-2 flex items-center gap-1 text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1 rounded-full transition-colors"
+                                            className={`mt-2 flex items-center gap-1 text-xs px-3 py-1 rounded-full transition-colors ${
+                                                theme === 'dark'
+                                                    ? 'bg-purple-900/50 hover:bg-purple-900 text-purple-300'
+                                                    : 'bg-purple-100 hover:bg-purple-200 text-purple-700'
+                                            }`}
                                         >
                                             <Volume2 size={12} />
                                             Play Audio
@@ -381,8 +475,9 @@ const ChatAI = () => {
                                     
                                     <p className={`text-xs mt-2 ${
                                         msg.sender === 'user' ? 'text-purple-100' : 
-                                        msg.sender === 'system' ? 'text-blue-700' :
-                                        'text-gray-500'
+                                        msg.sender === 'system' 
+                                            ? theme === 'dark' ? 'text-blue-400' : 'text-blue-700'
+                                            : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
                                     }`}>
                                         {msg.time}
                                     </p>
@@ -393,17 +488,25 @@ const ChatAI = () => {
 
                     {loading && (
                         <div className="flex justify-start">
-                            <div className="bg-gray-100 rounded-lg px-4 py-3">
+                            <div className={`rounded-lg px-4 py-3 ${
+                                theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
+                            }`}>
                                 <div className="flex items-center gap-2">
                                     <Loader className="animate-spin text-purple-600" size={16} />
-                                    <span className="text-gray-600">AI is thinking...</span>
+                                    <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
+                                        AI is thinking...
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     )}
 
                     {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-2">
+                        <div className={`border px-4 py-3 rounded-lg text-sm flex items-start gap-2 ${
+                            theme === 'dark'
+                                ? 'bg-red-900/20 border-red-500/30 text-red-400'
+                                : 'bg-red-50 border-red-200 text-red-700'
+                        }`}>
                             <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
                             <span>{error}</span>
                         </div>
@@ -411,7 +514,9 @@ const ChatAI = () => {
                 </div>
 
                 {/* Chat Input */}
-                <div className="p-4 border-t border-gray-200">
+                <div className={`p-4 border-t ${
+                    theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                }`}>
                     <div className="flex gap-2">
                         {/* Upload Button */}
                         <div className="relative">
@@ -426,7 +531,11 @@ const ChatAI = () => {
                             <button
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={loading || uploadLoading}
-                                className="px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className={`px-4 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                                    theme === 'dark'
+                                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                                }`}
                                 title="Upload PDF"
                             >
                                 <Upload size={20} />
@@ -440,7 +549,11 @@ const ChatAI = () => {
                             onChange={(e) => setChatInput(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && !loading && !uploadLoading && handleChatSend()}
                             placeholder={isPdfUploaded ? "Ask your question..." : "Upload a PDF first..."}
-                            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                            className={`flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 ${
+                                theme === 'dark'
+                                    ? 'bg-gray-700 border-gray-600 text-white placeholder:text-gray-500'
+                                    : 'bg-white border-gray-300 text-gray-900 placeholder:text-gray-400'
+                            }`}
                             disabled={loading || !isPdfUploaded || uploadLoading}
                         />
 
