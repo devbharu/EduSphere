@@ -40,10 +40,14 @@ const Login = () => {
         try {
             const result = await login(formData.email, formData.password);
 
+            console.log(result.user)
+
             if (result.success) {
                 // Redirect based on user role
                 if (result.user.role === 'teacher') {
                     navigate('/teacher/dashboard');
+                } else if (result.user.role === 'investor') {
+                    navigate('/investor/dashboard');
                 } else {
                     navigate('/dashboard');
                 }
@@ -323,6 +327,12 @@ const Login = () => {
                                 }`}>
                                     <span className="font-medium">👨‍🏫 Teacher:</span>
                                     <code className="flex-1">teacher@edusphere.com / password123</code>
+                                </div>
+                                <div className={`flex items-center gap-2 p-2 rounded-lg ${
+                                    theme === 'dark' ? 'bg-gray-800/50' : 'bg-white/50'
+                                }`}>
+                                    <span className="font-medium">💼 Investor:</span>
+                                    <code className="flex-1">investor@edusphere.com / password123</code>
                                 </div>
                             </div>
                         </div>

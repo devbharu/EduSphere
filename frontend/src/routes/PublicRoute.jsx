@@ -8,18 +8,31 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const PublicRoute = ({ children }) => {
-    const { isAuthenticated, user } = useAuth();
+  const { user, loading } = useAuth();
 
-    // If user is authenticated, redirect to appropriate dashboard
-    if (isAuthenticated) {
-        if (user?.role === 'teacher') {
-            return <Navigate to="/teacher/dashboard" replace />;
-        }
-        return <Navigate to="/dashboard" replace />;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="spinner mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (user) {
+    // Redirect to appropriate dashboard based on user role
+    if (user.role === 'investor') {
+      return <Navigate to="/investor/dashboard" replace />;
+    } else if (user.role === 'teacher') {
+      return <Navigate to="/teacher/dashboard" replace />;
+    } else {
+      return <Navigate to="/dashboard" replace />;
     }
+  }
 
-    // Render the public page (login, register, etc.)
-    return children;
+  return children;
 };
 
 export default PublicRoute;

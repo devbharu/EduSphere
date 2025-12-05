@@ -25,6 +25,8 @@ import LiveClass from './pages/student/Liveclass';
 import Chat from './pages/student/Chat';
 import DoubtAssistant from './pages/student/DoubtAssistant';
 
+// Investor pages
+import InvestorDashboard from './pages/investor/Dashboard';
 
 // 404 page
 import NotFound from './pages/NotFound';
@@ -80,7 +82,7 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <PrivateRoute>
+            <PrivateRoute allowedRoles={['student']}>
               <Dashboard />
             </PrivateRoute>
           }
@@ -88,7 +90,7 @@ function App() {
         <Route
           path="/profile"
           element={
-            <PrivateRoute>
+            <PrivateRoute allowedRoles={['student']}>
               <Profile />
             </PrivateRoute>
           }
@@ -96,7 +98,7 @@ function App() {
         <Route
           path="/assignments"
           element={
-            <PrivateRoute>
+            <PrivateRoute allowedRoles={['student']}>
               <Assignments />
             </PrivateRoute>
           }
@@ -104,7 +106,7 @@ function App() {
         <Route
           path="/materials"
           element={
-            <PrivateRoute>
+            <PrivateRoute allowedRoles={['student']}>
               <Materials />
             </PrivateRoute>
           }
@@ -112,7 +114,7 @@ function App() {
         <Route
           path="/live-class/:classId"
           element={
-            <PrivateRoute>
+            <PrivateRoute allowedRoles={['student']}>
               <LiveClass />
             </PrivateRoute>
           }
@@ -120,7 +122,7 @@ function App() {
         <Route
           path="/chat"
           element={
-            <PrivateRoute>
+            <PrivateRoute allowedRoles={['student']}>
               <Chat />
             </PrivateRoute>
           }
@@ -128,7 +130,7 @@ function App() {
         <Route
           path="/doubt-assistant"
           element={
-            <PrivateRoute>
+            <PrivateRoute allowedRoles={['student']}>
               <DoubtAssistant />
             </PrivateRoute>
           }
@@ -136,6 +138,16 @@ function App() {
 
         {/* Teacher Private Routes */}
 
+
+        {/* Investor Private Routes */}
+        <Route
+          path="/investor/dashboard"
+          element={
+            <PrivateRoute allowedRoles={['investor']}>
+              <InvestorDashboard />
+            </PrivateRoute>
+          }
+        />
 
         {/* Default route - redirect to dashboard or login */}
         <Route path="/" element={<Navigate to="/login" replace />} />

@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Mail, Lock, User, Eye, EyeOff, UserPlus, BookOpen, GraduationCap, Users } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, UserPlus, BookOpen, GraduationCap, Users, TrendingUp } from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
 
 const Register = () => {
@@ -63,6 +63,8 @@ const Register = () => {
             if (result.success) {
                 if (result.user.role === 'teacher') {
                     navigate('/teacher/dashboard');
+                } else if (result.user.role === 'investor') {
+                    navigate('/investor/dashboard');
                 } else {
                     navigate('/dashboard');
                 }
@@ -199,7 +201,7 @@ const Register = () => {
                             } mb-3`}>
                                 I am a
                             </label>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-3 gap-3">
                                 <button
                                     type="button"
                                     onClick={() => setFormData({ ...formData, role: 'student' })}
@@ -214,7 +216,7 @@ const Register = () => {
                                     }`}
                                 >
                                     <GraduationCap size={24} />
-                                    <span className="font-medium">Student</span>
+                                    <span className="font-medium text-sm">Student</span>
                                 </button>
                                 <button
                                     type="button"
@@ -230,7 +232,23 @@ const Register = () => {
                                     }`}
                                 >
                                     <Users size={24} />
-                                    <span className="font-medium">Teacher</span>
+                                    <span className="font-medium text-sm">Teacher</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, role: 'investor' })}
+                                    className={`py-4 px-4 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${
+                                        formData.role === 'investor'
+                                            ? theme === 'dark'
+                                                ? 'border-blue-500 bg-blue-500/20 text-blue-400'
+                                                : 'border-blue-600 bg-blue-50 text-blue-700'
+                                            : theme === 'dark'
+                                                ? 'border-gray-600 hover:border-gray-500 text-gray-400'
+                                                : 'border-gray-300 hover:border-gray-400 text-gray-700'
+                                    }`}
+                                >
+                                    <TrendingUp size={24} />
+                                    <span className="font-medium text-sm">Investor</span>
                                 </button>
                             </div>
                         </div>
