@@ -7,6 +7,7 @@ const connectDB = require("./config/db");
 // Routes
 const studentRoutes = require("./routes/user");
 const auth = require("./middleware/auth");
+const startUpRoutes = require('./routes/startUpRoutes')
 
 // SOCKET
 const http = require("http");
@@ -23,6 +24,7 @@ app.use(cors());
 
 // Public Routes
 app.use("/api/auth", studentRoutes);
+app.use('/api/startUp',startUpRoutes)
 
 // Protected Sample Route
 app.get("/protected", auth, (req, res) => {
