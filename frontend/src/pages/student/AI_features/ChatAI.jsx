@@ -6,9 +6,10 @@ import {
     Upload,
     FileText,
     X,
-    AlertCircle
+    AlertCircle,
+    Volume2,
+    VolumeX
 } from 'lucide-react';
-import aiService from '../../../services/aiService';
 
 const ChatAI = () => {
     const [chatHistory, setChatHistory] = useState([]);
@@ -18,6 +19,7 @@ const ChatAI = () => {
     const [error, setError] = useState('');
     const [uploadedFile, setUploadedFile] = useState(null);
     const [isPdfUploaded, setIsPdfUploaded] = useState(false);
+    const [enableTTS, setEnableTTS] = useState(false);
     const fileInputRef = useRef(null);
     const audioRef = useRef(new Audio());
 
@@ -111,14 +113,46 @@ const ChatAI = () => {
         setChatHistory(prev => [...prev, systemMessage]);
     };
 
-    const playInlineTTS = async (text) => {
+    const convertTextToSpeech = async (text) => {
         try {
-            const { url } = await aiService.ttsInline(text);
-            audioRef.current.pause();
-            audioRef.current.src = url;
-            await audioRef.current.play();
+            const response = await fetch('http://localhost:8000/tts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: text,
+                    inline: true
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to generate speech');
+            }
+
+            const result = await response.json();
+
+            if (result.success && result.audio_base64) {
+                // Convert base64 to blob
+                const binary = atob(result.audio_base64);
+                const len = binary.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                const blob = new Blob([bytes], { type: 'audio/mpeg' });
+                const url = URL.createObjectURL(blob);
+
+                // Play audio
+                audioRef.current.pause();
+                audioRef.current.src = url;
+                await audioRef.current.play();
+
+                console.log(`TTS played successfully (Language: ${result.detected_language})`);
+            }
         } catch (err) {
-            console.error('TTS play error', err);
+            console.error('TTS Error:', err);
+            // Don't show error to user, just log it
         }
     };
 
@@ -172,7 +206,11 @@ const ChatAI = () => {
                 };
 
                 setChatHistory(prev => [...prev, aiMessage]);
-                await playInlineTTS(result.answer);
+
+                // Auto-play TTS if enabled
+                if (enableTTS) {
+                    await convertTextToSpeech(result.answer);
+                }
             } else {
                 throw new Error('Failed to retrieve answer');
             }
@@ -189,6 +227,20 @@ const ChatAI = () => {
             setChatHistory(prev => [...prev, errorMessage]);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const stopAudio = () => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+        }
+    };
+
+    const toggleTTS = () => {
+        setEnableTTS(!enableTTS);
+        if (enableTTS) {
+            stopAudio();
         }
     };
 
@@ -218,8 +270,28 @@ const ChatAI = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-[600px]">
                 {/* Chat Header */}
                 <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-xl font-bold text-gray-900">Chat with AI Assistant</h2>
-                    <p className="text-sm text-gray-600">Upload a PDF and ask questions about it</p>
+                    <div className="flex items-center justify-between mb-2">
+                        <div>
+                            <h2 className="text-xl font-bold text-gray-900">Chat with AI Assistant</h2>
+                            <p className="text-sm text-gray-600">Upload a PDF and ask questions about it</p>
+                        </div>
+
+                        {/* TTS Toggle Button */}
+                        <button
+                            onClick={toggleTTS}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                                enableTTS
+                                    ? 'bg-purple-600 text-white shadow-md'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                            title={enableTTS ? 'TTS Enabled' : 'TTS Disabled'}
+                        >
+                            {enableTTS ? <Volume2 size={20} /> : <VolumeX size={20} />}
+                            <span className="text-sm font-medium">
+                                {enableTTS ? 'TTS ON' : 'TTS OFF'}
+                            </span>
+                        </button>
+                    </div>
                     
                     {/* Uploaded File Indicator */}
                     {uploadedFile && (
@@ -248,6 +320,16 @@ const ChatAI = () => {
                             <span className="text-xs text-yellow-900">Please upload a PDF file to start chatting</span>
                         </div>
                     )}
+
+                    {/* TTS Status */}
+                    {enableTTS && isPdfUploaded && (
+                        <div className="mt-2 flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+                            <Volume2 className="text-purple-600" size={14} />
+                            <span className="text-xs text-purple-900">
+                                🌍 Multilingual TTS enabled - AI responses will be spoken automatically
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Chat Messages */}
@@ -257,6 +339,7 @@ const ChatAI = () => {
                             <Sparkles className="mx-auto text-purple-600 mb-4" size={48} />
                             <p className="text-gray-600 mb-2">Start a conversation with AI</p>
                             <p className="text-sm text-gray-500">Upload a PDF and ask questions about it!</p>
+                            <p className="text-xs text-gray-400 mt-2">🎤 Enable TTS for voice responses</p>
                         </div>
                     )}
 
@@ -284,6 +367,18 @@ const ChatAI = () => {
                                     }`}
                                 >
                                     <p className="whitespace-pre-line">{msg.message}</p>
+                                    
+                                    {/* Manual Play Button for AI messages */}
+                                    {msg.sender === 'ai' && (
+                                        <button
+                                            onClick={() => convertTextToSpeech(msg.message)}
+                                            className="mt-2 flex items-center gap-1 text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1 rounded-full transition-colors"
+                                        >
+                                            <Volume2 size={12} />
+                                            Play Audio
+                                        </button>
+                                    )}
+                                    
                                     <p className={`text-xs mt-2 ${
                                         msg.sender === 'user' ? 'text-purple-100' : 
                                         msg.sender === 'system' ? 'text-blue-700' :
