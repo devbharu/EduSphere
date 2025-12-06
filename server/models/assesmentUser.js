@@ -11,7 +11,15 @@ const AssesmentUserSchema = new mongoose.Schema({
     ref: 'Student',
     required: true
   },
-  marks: { type: Number, required: true, min: 0 }
+  marks: { 
+    type: Number, 
+    required: true, 
+    min: 0 
+  },
+  timeTaken: {
+    type: String,
+    default: '0s'
+  }
 }, { timestamps: true });
 
 AssesmentUserSchema.index({ assesmentId: 1, studentId: 1 }, { unique: true }); // optional: one record per student per assessment

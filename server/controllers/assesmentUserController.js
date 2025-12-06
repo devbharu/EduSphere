@@ -3,11 +3,11 @@ const Assesment = require('../models/assesment');
 
 /**
  * Create or update a student's assessment result
- * body: { assesmentId, studentId, marks }
+ * body: { assesmentId, studentId, marks, timeTaken (optional) }
  */
 exports.createAssesmentUser = async (req, res) => {
   try {
-    const { assesmentId, studentId, marks } = req.body;
+    const { assesmentId, studentId, marks, timeTaken } = req.body;
     if (!assesmentId || !studentId || typeof marks !== 'number') {
       return res.status(400).json({ error: 'assesmentId, studentId and numeric marks are required' });
     }
@@ -16,10 +16,16 @@ exports.createAssesmentUser = async (req, res) => {
     const assesmentExists = await Assesment.findById(assesmentId);
     if (!assesmentExists) return res.status(404).json({ error: 'Assessment not found' });
 
+    // Prepare update data
+    const updateData = { marks };
+    if (timeTaken) {
+      updateData.timeTaken = timeTaken;
+    }
+
     // Upsert: ensure single record per student per assessment
     const record = await AssesmentUser.findOneAndUpdate(
       { assesmentId, studentId },
-      { marks },
+      updateData,
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
@@ -41,6 +47,7 @@ exports.getAssessmentsByUserId = async (req, res) => {
 
     const records = await AssesmentUser.find({ studentId })
       .populate('assesmentId', 'heading topic questions')
+      .sort({ createdAt: -1 })
       .lean();
 
     return res.json({ success: true, records });
@@ -60,10 +67,8 @@ exports.getResultsByAssessmentId = async (req, res) => {
     if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
 
     const records = await AssesmentUser.find({ assesmentId: assessmentId })
-      .sort({ createdAt: -1 });
-
-
-      // console.log(records)
+      .populate('studentId', 'name email')
+      .sort({ marks: -1, createdAt: -1 });
 
     return res.json({ success: true, records });
   } catch (err) {
@@ -73,7 +78,7 @@ exports.getResultsByAssessmentId = async (req, res) => {
 };
 
 /**
- * Optional: Get a student's result for a specific assessment
+ * Get a student's result for a specific assessment
  * params: assesmentId, studentId
  */
 exports.getAssessmentResult = async (req, res) => {
@@ -81,10 +86,15 @@ exports.getAssessmentResult = async (req, res) => {
     const { assesmentId, studentId } = req.params;
     if (!assesmentId || !studentId) return res.status(400).json({ error: 'assesmentId and studentId required' });
 
-    const record = await AssesmentUser.findOne({ assesmentId, studentId }).populate('assesmentId', 'heading topic');
+    const record = await AssesmentUser.findOne({ assesmentId, studentId })
+      .populate('assesmentId', 'heading topic questions');
+    
     if (!record) return res.status(404).json({ error: 'Result not found' });
 
-    return res.json({ success: true, record });
+    return res.json({ 
+      success: true, 
+      record: record.toObject()
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });

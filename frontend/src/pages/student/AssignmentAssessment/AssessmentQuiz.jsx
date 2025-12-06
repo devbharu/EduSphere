@@ -30,6 +30,8 @@ const AssessmentQuiz = () => {
     const [quizStarted, setQuizStarted] = useState(false);
     const [showResults, setShowResults] = useState(false);
     const [score, setScore] = useState(0);
+    const [startTime, setStartTime] = useState(null); // Store quiz start timestamp
+    const [finalTimeTaken, setFinalTimeTaken] = useState(''); // Store formatted time taken
 
     useEffect(() => {
         loadAssessment();
@@ -84,7 +86,11 @@ const AssessmentQuiz = () => {
     };
 
     const handleStartQuiz = () => {
+        // Capture the exact start time as timestamp
+        const quizStartTimestamp = Date.now();
+        setStartTime(quizStartTimestamp);
         setQuizStarted(true);
+        console.log('Quiz started at:', new Date(quizStartTimestamp).toISOString());
     };
 
     const handleAnswerSelect = (questionIndex, optionIndex) => {
@@ -103,6 +109,20 @@ const AssessmentQuiz = () => {
         });
         const percentage = Math.round((correct / assessment.questions.length) * 100);
         return percentage;
+    };
+
+    const formatTimeTaken = (seconds) => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        
+        if (hours > 0) {
+            return `${hours}h ${minutes}m ${secs}s`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${secs}s`;
+        } else {
+            return `${secs}s`;
+        }
     };
 
     const handleAutoSubmit = async () => {
@@ -127,7 +147,15 @@ const AssessmentQuiz = () => {
             const calculatedScore = calculateScore();
             setScore(calculatedScore);
 
-            // Submit to backend
+            // Calculate time taken
+            const endTime = Date.now();
+            const timeTakenSeconds = Math.floor((endTime - startTime) / 1000);
+            const formattedTimeTaken = formatTimeTaken(timeTakenSeconds);
+            setFinalTimeTaken(formattedTimeTaken);
+
+            console.log('Time taken:', formattedTimeTaken);
+
+            // Submit to backend with timeTaken string
             const response = await fetch('http://localhost:5000/api/assessment-users', {
                 method: 'POST',
                 headers: {
@@ -137,7 +165,8 @@ const AssessmentQuiz = () => {
                 body: JSON.stringify({
                     assesmentId: assessmentId,
                     studentId: user._id,
-                    marks: calculatedScore
+                    marks: calculatedScore,
+                    timeTaken: formattedTimeTaken // Send formatted time string
                 })
             });
 
@@ -271,7 +300,7 @@ const AssessmentQuiz = () => {
                             </p>
                         </div>
 
-                        <div className={`grid grid-cols-3 gap-4 mb-8 p-6 rounded-xl ${
+                        <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 p-6 rounded-xl ${
                             theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'
                         }`}>
                             <div>
@@ -304,6 +333,18 @@ const AssessmentQuiz = () => {
                                 </p>
                                 <p className={`text-2xl font-bold text-red-500`}>
                                     {assessment.questions.length - Math.round((score / 100) * assessment.questions.length)}
+                                </p>
+                            </div>
+                            <div>
+                                <p className={`text-sm font-medium mb-1 ${
+                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                }`}>
+                                    Time Taken
+                                </p>
+                                <p className={`text-2xl font-bold ${
+                                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                                }`}>
+                                    {finalTimeTaken}
                                 </p>
                             </div>
                         </div>
