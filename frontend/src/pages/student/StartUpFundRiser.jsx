@@ -310,7 +310,7 @@ const StartUpFundRiser = () => {
             : 'bg-white border-gray-100'
         }`}>
           {/* Header with Gradient */}
-          <div className={`relative h-40 sm:h-48 ${
+          <div className={`relative h-32 sm:h-40 ${
             theme === 'dark'
               ? 'bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600'
               : 'bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700'
@@ -320,18 +320,18 @@ const StartUpFundRiser = () => {
           </div>
 
           <div className="px-6 sm:px-8 lg:px-10 pb-8 sm:pb-10">
-            <div className="flex flex-col items-center -mt-20 sm:-mt-24">
-              {/* Icon */}
-              <div className={`w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 shadow-2xl flex items-center justify-center transition-all duration-300 ${
+            <div className="flex flex-col items-center -mt-16 sm:-mt-20">
+              {/* Icon - Fixed positioning */}
+              <div className={`relative w-28 h-28 sm:w-36 sm:h-36 rounded-full border-4 shadow-2xl flex items-center justify-center transition-all duration-300 ${
                 theme === 'dark'
-                  ? 'bg-gradient-to-br from-gray-700 to-gray-800 border-gray-700'
+                  ? 'bg-gradient-to-br from-gray-700 to-gray-800 border-gray-800'
                   : 'bg-gradient-to-br from-white to-gray-50 border-white'
               }`}>
-                <Rocket size={56} className={theme === 'dark' ? 'text-blue-400' : 'text-blue-600'} />
+                <Rocket size={48} className={`${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'} sm:w-14 sm:h-14`} />
               </div>
 
               {/* Title */}
-              <h2 className={`mt-5 text-2xl sm:text-3xl font-bold tracking-tight text-center ${
+              <h2 className={`mt-4 text-2xl sm:text-3xl font-bold tracking-tight text-center ${
                 theme === 'dark' ? 'text-white' : 'text-gray-900'
               }`}>
                 {existingStartup ? formData.name || 'Your Startup' : 'New Startup'}
@@ -347,7 +347,7 @@ const StartUpFundRiser = () => {
 
             {/* View Mode - Display Data */}
             {existingStartup && !isEditing ? (
-              <div className="mt-10 space-y-6">
+              <div className="mt-8 space-y-6">
                 {/* Startup Details Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Startup Name */}
@@ -499,7 +499,7 @@ const StartUpFundRiser = () => {
               </div>
             ) : (
               /* Edit Mode - Form */
-              <form onSubmit={handleSubmit} className="mt-10 space-y-6 sm:space-y-7">
+              <form onSubmit={handleSubmit} className="mt-8 space-y-6 sm:space-y-7">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Startup Name */}
                   <div className="md:col-span-2 group">
