@@ -10,6 +10,8 @@ import { SocketProvider } from './context/SocketContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { NotesProvider } from './context/DocContext.jsx'
 import { WebRTCProvider } from './context/WebRTCContext.jsx'
+import { PdfProvider } from './context/MaterialContext.jsx'
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
@@ -19,7 +21,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <AuthProvider>
             <SocketProvider>
               <WebRTCProvider>
-                <App />
+                <PdfProvider>
+                  <App />
+                </PdfProvider>
+
               </WebRTCProvider>
 
             </SocketProvider>
