@@ -49,6 +49,7 @@ export const WebRTCProvider = ({ children }) => {
             socket.off("ice-candidate");
             socket.off("user-left");
             socket.off("live_class_added");
+            socket.off("live_class_deleted"); // ⬅️ NEW: Cleanup for deletion
         }
     };
 
@@ -121,11 +122,50 @@ export const WebRTCProvider = ({ children }) => {
         }
     };
 
-    // 11. Handle Real-time Class Addition 
+    // 11. Delete Live Class (NEW FUNCTION)
+    const deleteLiveClass = async (classId) => {
+        const token = getAuthToken();
+        if (!token) {
+            throw new Error("Authentication required to delete a class.");
+        }
+
+        try {
+            const response = await fetch(`/api/liveClasses/${classId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to delete live class.');
+            }
+
+            // Manually update state for immediate feedback, though the socket event will also fire.
+            handleLiveClassDeleted(classId);
+            return { success: true, message: data.message };
+
+        } catch (error) {
+            console.error(`Delete Live Class Error for ID ${classId}:`, error.message);
+            throw error;
+        }
+    };
+
+
+    // 12. Handle Real-time Class Addition 
     const handleLiveClassAdded = (newClass) => {
         console.log("Real-time: New class added:", newClass.title);
         setActiveLiveClasses(prev => [newClass, ...prev.filter(c => c._id !== newClass._id)]);
     };
+
+    // 13. Handle Real-time Class Deletion (NEW FUNCTION)
+    const handleLiveClassDeleted = (classId) => {
+        console.log("Real-time: Class deleted:", classId);
+        setActiveLiveClasses(prev => prev.filter(c => c._id !== classId));
+    };
+
 
     // 1. Initialize Local Media (Camera/Mic)
     const initLocalMedia = async () => {
@@ -164,6 +204,8 @@ export const WebRTCProvider = ({ children }) => {
         }
         cleanupSocketListeners();
         socket.on("live_class_added", handleLiveClassAdded);
+        socket.on("live_class_deleted", handleLiveClassDeleted); // ⬅️ NEW: Register deletion listener
+
         console.log(`Joining Video Room: ${roomId}`);
         socket.emit("join-video-room", { roomId });
 
@@ -315,6 +357,7 @@ export const WebRTCProvider = ({ children }) => {
     useEffect(() => {
         if (socket && typeof socket.on === 'function') {
             socket.on("live_class_added", handleLiveClassAdded);
+            socket.on("live_class_deleted", handleLiveClassDeleted); // ⬅️ NEW: Register global deletion listener
         }
 
         return () => {
@@ -324,6 +367,7 @@ export const WebRTCProvider = ({ children }) => {
             }
             if (socket && typeof socket.off === 'function') {
                 socket.off("live_class_added");
+                socket.off("live_class_deleted"); // ⬅️ NEW: Unregister global deletion listener
             }
         };
     }, [socket]);
@@ -345,6 +389,7 @@ export const WebRTCProvider = ({ children }) => {
                 activeLiveClasses,
                 fetchLiveClasses,
                 createLiveClass,
+                deleteLiveClass, // ⬅️ NEW EXPORT
                 liveClassLoading,
                 liveClassError,
             }}

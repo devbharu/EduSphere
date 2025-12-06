@@ -16,7 +16,8 @@ import {
     MessageSquare,
     Phone,
     Copy,
-    Check
+    Check,
+    Trash2 // ⬅️ Added Trash Icon
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useWebRTCCall } from '../../context/WebRTCContext';
@@ -25,21 +26,26 @@ import { useSocket } from '../../context/SocketContext';
 const LiveClass = () => {
     const navigate = useNavigate();
     const { classId } = useParams();
-    const { user } = useAuth();
+    const { user } = useAuth(); // Contains user role/details
+
+    // Assume user.role === 'teacher' for simplicity in this frontend logic
+    // The backend will perform the definitive check.
+    const isTeacher = user?.role === 'teacher';
 
     // 1. Get Socket with safety checks
-    const socket = useSocket();
+    const { socket } = useSocket();
 
     // 2. WebRTC Context (Video logic)
     const {
         participants,
         initLocalMedia,
-        joinRoom, // This calls 'join-video-room' internally
+        joinRoom,
         leaveRoom,
         toggleVideo,
         toggleAudio,
         isVideoOn,
-        isAudioOn
+        isAudioOn,
+        deleteLiveClass // ⬅️ NEW: Import delete function
     } = useWebRTCCall();
 
     // Local State
@@ -118,10 +124,30 @@ const LiveClass = () => {
     // ============================================
     // ⚡ ACTIONS
     // ============================================
-    const handleLeaveClass = () => {
+    const handleLeaveClass = async () => {
+        // 1. Execute deletion if the user is the teacher
+        if (isTeacher) {
+            if (window.confirm("Are you sure you want to END and DELETE this live class for all participants?")) {
+                try {
+                    await deleteLiveClass(classId);
+                    alert("Class successfully ended and deleted.");
+                } catch (error) {
+                    console.error("Failed to delete class:", error);
+                    alert(`Failed to end class: ${error.message}. You can still leave the session.`);
+                }
+            } else {
+                // If the teacher cancels deletion, they stay in the room.
+                return;
+            }
+        }
+
+        // 2. Leave the WebRTC session (mandatory for both roles)
         leaveRoom(classId);
+
+        // 3. Navigate away
         navigate('/dashboard');
     };
+
 
     const handleCopyLink = () => {
         const link = window.location.href;
@@ -135,7 +161,8 @@ const LiveClass = () => {
         if (messageInput.trim() && socket && typeof socket.emit === 'function') {
             socket.emit("send_message", {
                 roomId: classId,
-                message: messageInput
+                message: messageInput,
+                // Add sender details here if needed for chat history (e.g., senderName: user?.name)
             });
             setMessageInput('');
         } else {
@@ -165,7 +192,7 @@ const LiveClass = () => {
             <div className="bg-gray-800 border-b border-gray-700 px-4 py-3 shadow-md z-30">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <button onClick={handleLeaveClass} className="p-2 hover:bg-gray-700 rounded-lg text-white transition-colors">
+                        <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-gray-700 rounded-lg text-white transition-colors">
                             <ArrowLeft size={20} />
                         </button>
                         <div>
@@ -189,10 +216,22 @@ const LiveClass = () => {
 
                     <button
                         onClick={handleLeaveClass}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-sm font-medium text-sm"
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors shadow-sm font-medium text-sm ${isTeacher
+                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                            : 'bg-gray-600 hover:bg-gray-700 text-white'
+                            }`}
                     >
-                        <Phone size={18} />
-                        <span className="hidden sm:inline">End Class</span>
+                        {isTeacher ? (
+                            <>
+                                <Trash2 size={18} />
+                                <span className="hidden sm:inline">End & Delete Class</span>
+                            </>
+                        ) : (
+                            <>
+                                <Phone size={18} className="rotate-[135deg]" />
+                                <span className="hidden sm:inline">Leave Class</span>
+                            </>
+                        )}
                     </button>
                 </div>
             </div>
@@ -277,13 +316,16 @@ const LiveClass = () => {
                                 activeColor="bg-gray-700 hover:bg-gray-600"
                                 inactiveColor="bg-red-500 hover:bg-red-600"
                             />
-                            <ControlButton
-                                onClick={toggleScreenShare}
-                                isActive={!isScreenSharing}
-                                onIcon={<Monitor size={20} />}
-                                offIcon={<Monitor size={20} />}
-                                activeColor="bg-gray-700 hover:bg-gray-600"
-                            />
+                            {isTeacher && ( // Only allow teacher to share screen
+                                <ControlButton
+                                    onClick={toggleScreenShare}
+                                    isActive={!isScreenSharing}
+                                    onIcon={<Monitor size={20} />}
+                                    offIcon={<Monitor size={20} />}
+                                    activeColor="bg-gray-700 hover:bg-gray-600"
+                                />
+                            )}
+
 
                             <div className="w-px h-8 bg-gray-700 mx-1"></div>
 

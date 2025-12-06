@@ -64,4 +64,54 @@ router.get("/", auth, async (req, res) => {
     }
 });
 
+// ==========================================
+// C. DELETE A LIVE CLASS ROOM (DELETE /api/liveClasses/:id)
+// ==========================================
+router.delete("/:id", auth, async (req, res) => {
+    try {
+        // 1. Find the class by ID
+        const liveClass = await LiveClass.findById(req.params.id);
+
+        // Check if the class exists
+        if (!liveClass) {
+            return res.status(404).json({ message: "Live Class not found" });
+        }
+
+        // 2. Authorization check: Ensure the authenticated user is the teacher who created the class
+        if (liveClass.teacher.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ message: "Not authorized to delete this class" });
+        }
+
+        // 3. Delete the class
+        await LiveClass.deleteOne({ _id: req.params.id });
+
+        // ⚡ REAL-TIME UPDATE: Notify all connected dashboards instantly
+        try {
+            const io = getIO();
+            if (io) {
+                // Emitting the ID of the deleted class
+                io.emit("live_class_deleted", req.params.id);
+            }
+        } catch (socketError) {
+            console.warn("Could not emit live_class_deleted socket event:", socketError.message);
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Live Class deleted successfully",
+            deletedClassId: req.params.id
+        });
+
+    } catch (error) {
+        console.error("Delete Live Class Error:", error);
+
+        // Handle possible invalid MongoDB ID format
+        if (error.kind === 'ObjectId') {
+            return res.status(400).json({ message: "Invalid Class ID format" });
+        }
+
+        res.status(500).json({ message: "Server Error" });
+    }
+});
+
 module.exports = router;
