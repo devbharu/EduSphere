@@ -2,18 +2,27 @@
  * Assignments & Assessments Page - Main container with tabs
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { ArrowLeft, FileText, ClipboardCheck } from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
 import AssignmentsTab from './AssignmentAssessment/Assignments';
 import AssessmentsTab from './AssignmentAssessment/Assessments';
+import { useAuth } from '../../context/AuthContext';
 
 const Assignments = () => {
     const navigate = useNavigate();
     const { theme } = useTheme();
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('assignments'); // 'assignments' or 'assessments'
+
+    // Redirect teachers to upload page
+    useEffect(() => {
+        if (user && user.role === 'teacher') {
+            navigate('/teacher/assessments');
+        }
+    }, [user, navigate]);
 
     return (
         <div className={`min-h-screen transition-colors duration-300 ${

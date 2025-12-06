@@ -28,6 +28,8 @@ import StartUpFundRiser from './pages/student/StartUpFundRiser';
 import DocsList from './pages/student/Doclist';
 import DocEditor from './pages/student/DocEditor';
 import AssessmentQuiz from './pages/student/AssignmentAssessment/AssessmentQuiz';
+import UploadAssessment from './pages/student/AssignmentAssessment/UploadAssessment';
+import TeacherDashboard from './pages/teacher/Dashboard'
 
 // Investor pages
 import InvestorDashboard from './pages/investor/Dashboard';
@@ -102,8 +104,16 @@ function App() {
         <Route
           path="/assignments"
           element={
-            <PrivateRoute allowedRoles={['student']}>
+            <PrivateRoute allowedRoles={['student', 'teacher']}>
               <Assignments />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/assignments/upload"
+          element={
+            <PrivateRoute allowedRoles={['teacher']}>
+              <UploadAssessment />
             </PrivateRoute>
           }
         />
@@ -175,7 +185,22 @@ function App() {
         />
 
         {/* Teacher Private Routes */}
-
+        <Route
+          path="/teacher/dashboard"
+          element={
+            <PrivateRoute allowedRoles={['teacher']}>
+              <TeacherDashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/teacher/assessments"
+          element={
+            <PrivateRoute allowedRoles={['teacher']}>
+              <UploadAssessment />
+            </PrivateRoute>
+          }
+        />
 
         {/* Investor Private Routes */}
         <Route

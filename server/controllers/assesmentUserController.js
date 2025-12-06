@@ -51,6 +51,27 @@ exports.getAssessmentsByUserId = async (req, res) => {
 };
 
 /**
+ * Get all student results for a specific assessment
+ * params: assessmentId
+ */
+exports.getResultsByAssessmentId = async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+    if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
+
+    const records = await AssesmentUser.find({ assesmentId: assessmentId })
+      .populate('studentId', 'name email')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({ success: true, records });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+};
+
+/**
  * Optional: Get a student's result for a specific assessment
  * params: assesmentId, studentId
  */
