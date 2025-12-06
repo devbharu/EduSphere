@@ -11,7 +11,7 @@ import tempfile
 import base64
 
 # Import service modules from components package
-from components import RAGService, AudioService, OCRService
+from components import RAGService, AudioService, OCRService, YouTubeService
 
 
 # Load environment variables
@@ -30,6 +30,7 @@ CORS(app)  # Enable CORS for frontend requests
 rag_service = RAGService(GROQ_API_KEY)
 audio_service = AudioService()
 ocr_service = OCRService(GROQ_API_KEY)
+youtube_service = YouTubeService(GROQ_API_KEY)
 
 
 # ---------- Utility Functions ----------
@@ -69,7 +70,10 @@ def home():
             "stt": "POST /stt",
             "multilingual": "POST /multilingual",
             "audio": "GET /audio/<filename>",
-            "ocr_extract": "POST /ocr/extract"
+            "ocr_extract": "POST /ocr/extract",
+            "youtube_transcript": "POST /youtube/transcript",
+            "youtube_summarize": "POST /youtube/summarize",
+            "youtube_summary_only": "POST /youtube/summary-only"
         }
     }), 200
 
@@ -530,6 +534,146 @@ Be specific, encouraging, and reference actual assessment data. Keep the tone su
         return jsonify({"error": f"Failed to generate recommendations: {str(e)}"}), 500
 
 
+# ---------- YouTube Endpoints ----------
+
+@app.route('/youtube/transcript', methods=['POST'])
+def youtube_transcript():
+    """
+    Extract transcript from YouTube video
+    Expects: JSON with 'youtube_url' field
+    Returns: Video transcript
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'youtube_url' not in data:
+            return jsonify({"error": "No YouTube URL provided"}), 400
+        
+        youtube_url = data['youtube_url']
+        
+        if not youtube_url.strip():
+            return jsonify({"error": "YouTube URL cannot be empty"}), 400
+        
+        print(f"Extracting transcript from: {youtube_url}")
+        
+        # Extract transcript
+        transcript = youtube_service.extract_transcript(youtube_url)
+        
+        if not transcript:
+            return jsonify({
+                "error": "Failed to extract transcript. Video may have no captions or be unavailable."
+            }), 400
+        
+        video_id = youtube_service._extract_video_id(youtube_url)
+        
+        return jsonify({
+            "success": True,
+            "video_url": youtube_url,
+            "video_id": video_id,
+            "transcript": transcript,
+            "transcript_length": len(transcript)
+        }), 200
+        
+    except Exception as e:
+        print(f"Error extracting transcript: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/youtube/summarize', methods=['POST'])
+def youtube_summarize():
+    """
+    Extract transcript and generate summary from YouTube video
+    Expects: JSON with 'youtube_url' and optional 'summary_type' (bullet/detailed/brief)
+    Returns: Transcript and AI-generated summary
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'youtube_url' not in data:
+            return jsonify({"error": "No YouTube URL provided"}), 400
+        
+        youtube_url = data['youtube_url']
+        summary_type = data.get('summary_type', 'detailed')
+        
+        if not youtube_url.strip():
+            return jsonify({"error": "YouTube URL cannot be empty"}), 400
+        
+        # Validate summary type
+        valid_types = ['bullet', 'detailed', 'brief']
+        if summary_type not in valid_types:
+            summary_type = 'detailed'
+        
+        print(f"\n{'='*60}")
+        print(f"Processing YouTube video: {youtube_url}")
+        print(f"Summary type: {summary_type}")
+        print(f"{'='*60}\n")
+        
+        # Process video (extract + summarize)
+        result = youtube_service.process_youtube_video(youtube_url, summary_type)
+        
+        if not result["success"]:
+            return jsonify({
+                "error": result["error"] or "Failed to process video"
+            }), 400
+        
+        return jsonify({
+            "success": True,
+            "video_url": youtube_url,
+            "video_id": result["video_id"],
+            "transcript": result["transcript"],
+            "transcript_length": result["transcript_length"],
+            "summary": result["summary"],
+            "summary_type": summary_type
+        }), 200
+        
+    except Exception as e:
+        print(f"Error processing YouTube video: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/youtube/summary-only', methods=['POST'])
+def youtube_summary_only():
+    """
+    Generate summary from provided transcript
+    Expects: JSON with 'transcript' and optional 'summary_type'
+    Returns: AI-generated summary
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'transcript' not in data:
+            return jsonify({"error": "No transcript provided"}), 400
+        
+        transcript = data['transcript']
+        summary_type = data.get('summary_type', 'detailed')
+        
+        if not transcript.strip():
+            return jsonify({"error": "Transcript cannot be empty"}), 400
+        
+        # Validate summary type
+        valid_types = ['bullet', 'detailed', 'brief']
+        if summary_type not in valid_types:
+            summary_type = 'detailed'
+        
+        print(f"Generating summary for transcript ({len(transcript)} chars)")
+        
+        # Generate summary
+        summary = youtube_service.generate_summary(transcript, summary_type)
+        
+        return jsonify({
+            "success": True,
+            "transcript_length": len(transcript),
+            "summary": summary,
+            "summary_type": summary_type
+        }), 200
+        
+    except Exception as e:
+        print(f"Error generating summary: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 # ---------- Error Handlers ----------
 
 @app.errorhandler(404)
@@ -561,11 +705,16 @@ if __name__ == "__main__":
     print("  GET  /audio/<file>  - Serve audio files")
     print("\n🔍 OCR Endpoint:")
     print("  POST /ocr/extract   - Extract text from image and answer query")
+    print("\n🎥 YouTube Endpoints:")
+    print("  POST /youtube/transcript      - Extract transcript from YouTube video")
+    print("  POST /youtube/summarize       - Extract and summarize YouTube video")
+    print("  POST /youtube/summary-only    - Generate summary from transcript")
     print("\n" + "="*70)
     print("✨ Services initialized:")
     print(f"  • RAG Service: {'✓' if rag_service else '✗'}")
     print(f"  • Audio Service: {'✓' if audio_service else '✗'}")
     print(f"  • OCR Service: {'✓' if ocr_service else '✗'}")
+    print(f"  • YouTube Service: {'✓' if youtube_service else '✗'}")
     print("="*70 + "\n")
     
     app.run(host='0.0.0.0', port=8000, debug=True)
