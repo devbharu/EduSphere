@@ -12,6 +12,8 @@ const startUpRoutes = require('./routes/startUpRoutes');
 const chatRoutes = require('./routes/chat');
 const roomRoutes = require('./routes/rooms');
 const notesRoutes = require("./routes/Notes.js");
+const assesmentRoutes = require('./routes/assesmentRoutes');
+const assesmentUserRoutes = require('./routes/assesmentUserRoutes');
 
 // Socket
 const { initSocket } = require("./socket/index");
@@ -35,6 +37,8 @@ app.use(cookieParser());
 // Public routes
 app.use("/api/auth", studentRoutes);
 app.use('/api/startUp', startUpRoutes);
+app.use('/api/assessments',assesmentRoutes);
+app.use('/api/assessment-users',assesmentUserRoutes);
 
 // Protected sample route
 app.get("/protected", auth, (req, res) => {
