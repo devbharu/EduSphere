@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { FileText, Trash2, X, Plus, Search, ArrowUpDown, Calendar, Clock, PenLine, Share2 } from "lucide-react";
+import { FileText, Trash2, X, Plus, Search, ArrowUpDown, Calendar, Clock, PenLine, Share2, ArrowLeft } from "lucide-react";
 import { useState, useMemo } from "react";
 // Import the new Context
 import { useNotes } from "../../context/DocContext"; // Ensure this path is correct
@@ -116,56 +116,67 @@ const NotesList = () => {
         <div className="min-h-screen bg-gray-50/50 dark:bg-gray-950 p-6 md:p-8 font-sans">
 
             {/* --- Header Control Bar --- */}
-            <div className="max-w-7xl mx-auto mb-8 space-y-4 md:space-y-0 md:flex md:items-center md:justify-between animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="max-w-7xl mx-auto mb-8 space-y-4">
+                {/* Back Button */}
+                <button
+                    onClick={() => navigate('/dashboard')}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 shadow-sm hover:shadow group"
+                >
+                    <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                    <span>Back to Dashboard</span>
+                </button>
 
-                {/* Title & Count */}
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <FileText className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-                        My Notes
-                    </h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        {isLoading ? "Syncing..." : `${processedNotes.length} notes found`}
-                    </p>
-                </div>
-
-                {/* Controls */}
-                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                    {/* Search Input */}
-                    <div className="relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
-                        <input
-                            type="text"
-                            placeholder="Search notes..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full sm:w-64 pl-10 pr-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
-                        />
+                {/* Title & Controls */}
+                <div className="md:flex md:items-center md:justify-between animate-in fade-in slide-in-from-top-4 duration-500">
+                    {/* Title & Count */}
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <FileText className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                            My Notes
+                        </h1>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            {isLoading ? "Syncing..." : `${processedNotes.length} notes found`}
+                        </p>
                     </div>
 
-                    {/* Sort Dropdown */}
-                    <div className="relative">
-                        <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value)}
-                            className="w-full sm:w-48 pl-10 pr-8 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none cursor-pointer transition-all shadow-sm text-gray-700 dark:text-gray-300"
+                    {/* Controls */}
+                    <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto mt-4 md:mt-0">
+                        {/* Search Input */}
+                        <div className="relative group">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Search notes..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full sm:w-64 pl-10 pr-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
+                            />
+                        </div>
+
+                        {/* Sort Dropdown */}
+                        <div className="relative">
+                            <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                className="w-full sm:w-48 pl-10 pr-8 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm appearance-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none cursor-pointer transition-all shadow-sm text-gray-700 dark:text-gray-300"
+                            >
+                                <option value="newest">Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                                <option value="a-z">Name (A-Z)</option>
+                                <option value="z-a">Name (Z-A)</option>
+                            </select>
+                        </div>
+
+                        {/* Create Button */}
+                        <button
+                            onClick={openCreateModal}
+                            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5"
                         >
-                            <option value="newest">Newest First</option>
-                            <option value="oldest">Oldest First</option>
-                            <option value="a-z">Name (A-Z)</option>
-                            <option value="z-a">Name (Z-A)</option>
-                        </select>
+                            <Plus className="w-4 h-4" />
+                            <span>New Note</span>
+                        </button>
                     </div>
-
-                    {/* Create Button */}
-                    <button
-                        onClick={openCreateModal}
-                        className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span>New Note</span>
-                    </button>
                 </div>
             </div>
 
