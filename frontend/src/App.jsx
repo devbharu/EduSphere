@@ -27,6 +27,7 @@ import DoubtAssistant from './pages/student/DoubtAssistant';
 import StartUpFundRiser from './pages/student/StartUpFundRiser';
 import DocsList from './pages/student/Doclist';
 import DocEditor from './pages/student/DocEditor';
+import AssessmentQuiz from './pages/student/AssignmentAssessment/AssessmentQuiz';
 
 // Investor pages
 import InvestorDashboard from './pages/investor/Dashboard';
@@ -103,6 +104,14 @@ function App() {
           element={
             <PrivateRoute allowedRoles={['student']}>
               <Assignments />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/assessment/:assessmentId"
+          element={
+            <PrivateRoute allowedRoles={['student']}>
+              <AssessmentQuiz />
             </PrivateRoute>
           }
         />
