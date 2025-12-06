@@ -8,7 +8,10 @@ router.post('/', assesmentUserCtrl.createAssesmentUser);
 // Get all assessment results for a student
 router.get('/user/:studentId', assesmentUserCtrl.getAssessmentsByUserId);
 
-// Get all student results for a specific assessment (NEW)
+// Get raw assessments for AI recommendations (NEW)
+router.get('/raw/:studentId', assesmentUserCtrl.getStudentAssessmentsRaw);
+
+// Get all student results for a specific assessment
 router.get('/assessment/:assessmentId', assesmentUserCtrl.getResultsByAssessmentId);
 
 // Get specific result (assessment + student)

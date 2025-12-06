@@ -3,13 +3,30 @@
  * View and edit student profile information
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { ArrowLeft, User, Mail, Phone, Calendar, MapPin, Edit2, Save, X, Camera, Shield, CheckCircle, AlertCircle } from 'lucide-react';
-import authService from '../../services/authService';
 import ThemeToggle from '../../components/ThemeToggle';
+import {
+    User,
+    Mail,
+    Phone,
+    MapPin,
+    Calendar,
+    BookOpen,
+    Award,
+    Edit2,
+    Save,
+    X,
+    ArrowLeft,
+    Building2,
+    Hash,
+    Sparkles,
+    TrendingUp,
+    Loader,Shield
+} from 'lucide-react';
+import authService from '../../services/authService';
 
 const Profile = () => {
     const navigate = useNavigate();
@@ -28,6 +45,11 @@ const Profile = () => {
         address: user?.address || '',
         bio: user?.bio || '',
     });
+
+    const [showRecommendations, setShowRecommendations] = useState(false);
+    const [recommendations, setRecommendations] = useState(null);
+    const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+    const [recommendationError, setRecommendationError] = useState('');
 
     const handleChange = (e) => {
         setProfileData({
@@ -66,6 +88,219 @@ const Profile = () => {
         setError('');
         setSuccess('');
     };
+
+    const handleGetRecommendations = async () => {
+        setLoadingRecommendations(true);
+        setRecommendationError('');
+        
+        try {
+            // Step 1: Fetch assessments from Node.js backend
+            console.log('Fetching assessment data...');
+            const assessmentResponse = await fetch(
+                `http://localhost:5000/api/assessment-users/raw/${user._id}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                }
+            );
+
+            if (!assessmentResponse.ok) {
+                const errorData = await assessmentResponse.json();
+                throw new Error(errorData.error || 'Failed to fetch assessments');
+            }
+
+            const assessmentData = await assessmentResponse.json();
+            console.log('Assessment data fetched:', assessmentData);
+
+            if (!assessmentData.success || !assessmentData.assessments) {
+                throw new Error('Invalid assessment data received');
+            }
+
+            // Step 2: Send to Python AI service
+            console.log('Sending data to AI service...');
+            const aiResponse = await fetch('http://localhost:8000/ai/recommendations', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    assessments: assessmentData.assessments,
+                    student_name: user.name || 'Student'
+                })
+            });
+
+            if (!aiResponse.ok) {
+                const errorData = await aiResponse.json();
+                throw new Error(errorData.error || 'Failed to generate recommendations');
+            }
+
+            const aiData = await aiResponse.json();
+            console.log('AI recommendations received:', aiData);
+
+            if (!aiData.success) {
+                throw new Error('Failed to generate recommendations');
+            }
+
+            setRecommendations(aiData);
+            setShowRecommendations(true);
+            
+        } catch (err) {
+            console.error('Failed to get AI recommendations:', err);
+            setRecommendationError(err.message || 'Failed to get recommendations. Please try again.');
+        } finally {
+            setLoadingRecommendations(false);
+        }
+    };
+
+    const RecommendationsModal = () => (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            <div className={`relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border ${
+                theme === 'dark'
+                    ? 'bg-gray-800 border-gray-700'
+                    : 'bg-white border-gray-200'
+            }`}>
+                {/* Header */}
+                <div className={`sticky top-0 z-10 px-6 py-4 border-b backdrop-blur-lg ${
+                    theme === 'dark'
+                        ? 'bg-gray-800/95 border-gray-700'
+                        : 'bg-white/95 border-gray-200'
+                }`}>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-xl ${
+                                theme === 'dark' ? 'bg-purple-500/20' : 'bg-purple-100'
+                            }`}>
+                                <Sparkles size={24} className={theme === 'dark' ? 'text-purple-400' : 'text-purple-600'} />
+                            </div>
+                            <div>
+                                <h3 className={`text-xl font-bold ${
+                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                }`}>
+                                    AI Study Recommendations
+                                </h3>
+                                <p className={`text-sm ${
+                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                }`}>
+                                    Personalized insights for {recommendations?.student_name}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setShowRecommendations(false)}
+                            className={`p-2 rounded-xl transition-all duration-200 ${
+                                theme === 'dark'
+                                    ? 'hover:bg-gray-700 text-gray-400'
+                                    : 'hover:bg-gray-100 text-gray-600'
+                            }`}
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 space-y-6">
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className={`p-4 rounded-xl border ${
+                            theme === 'dark'
+                                ? 'bg-blue-500/10 border-blue-500/30'
+                                : 'bg-blue-50 border-blue-200'
+                        }`}>
+                            <p className={`text-sm font-medium mb-1 ${
+                                theme === 'dark' ? 'text-blue-400' : 'text-blue-700'
+                            }`}>
+                                Total Assessments
+                            </p>
+                            <p className={`text-2xl font-bold ${
+                                theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>
+                                {recommendations?.total_assessments || 0}
+                            </p>
+                        </div>
+                        <div className={`p-4 rounded-xl border ${
+                            theme === 'dark'
+                                ? 'bg-green-500/10 border-green-500/30'
+                                : 'bg-green-50 border-green-200'
+                        }`}>
+                            <p className={`text-sm font-medium mb-1 ${
+                                theme === 'dark' ? 'text-green-400' : 'text-green-700'
+                            }`}>
+                                Average Score
+                            </p>
+                            <p className={`text-2xl font-bold ${
+                                theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>
+                                {recommendations?.average_score || 0}%
+                            </p>
+                        </div>
+                        <div className={`p-4 rounded-xl border ${
+                            theme === 'dark'
+                                ? 'bg-purple-500/10 border-purple-500/30'
+                                : 'bg-purple-50 border-purple-200'
+                        }`}>
+                            <p className={`text-sm font-medium mb-1 ${
+                                theme === 'dark' ? 'text-purple-400' : 'text-purple-700'
+                            }`}>
+                                Highest Score
+                            </p>
+                            <p className={`text-2xl font-bold ${
+                                theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>
+                                {recommendations?.summary?.highest_score || 0}%
+                            </p>
+                        </div>
+                        <div className={`p-4 rounded-xl border ${
+                            theme === 'dark'
+                                ? 'bg-orange-500/10 border-orange-500/30'
+                                : 'bg-orange-50 border-orange-200'
+                        }`}>
+                            <p className={`text-sm font-medium mb-1 ${
+                                theme === 'dark' ? 'text-orange-400' : 'text-orange-700'
+                            }`}>
+                                Lowest Score
+                            </p>
+                            <p className={`text-2xl font-bold ${
+                                theme === 'dark' ? 'text-white' : 'text-gray-900'
+                            }`}>
+                                {recommendations?.summary?.lowest_score || 0}%
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* AI Recommendations */}
+                    <div className={`p-6 rounded-xl border ${
+                        theme === 'dark'
+                            ? 'bg-gradient-to-br from-purple-900/20 to-indigo-900/20 border-purple-500/30'
+                            : 'bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200'
+                    }`}>
+                        <div className={`prose prose-sm max-w-none ${
+                            theme === 'dark' ? 'prose-invert' : ''
+                        }`}>
+                            <div className={`whitespace-pre-wrap leading-relaxed ${
+                                theme === 'dark' ? 'text-gray-200' : 'text-gray-800'
+                            }`}>
+                                {recommendations?.recommendations || 'No recommendations available.'}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="flex justify-end">
+                        <button
+                            onClick={() => setShowRecommendations(false)}
+                            className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200"
+                        >
+                            Got it, thanks!
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 
     return (
         <div className={`min-h-screen transition-colors duration-300 ${
@@ -447,8 +682,75 @@ const Profile = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* AI Recommendations Section */}
+                <div className={`p-6 border rounded-xl ${
+                    theme === 'dark'
+                        ? 'bg-gradient-to-br from-purple-900/20 to-indigo-900/20 border-purple-500/30'
+                        : 'bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200'
+                }`}>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                            <div className={`p-2 rounded-xl ${
+                                theme === 'dark' ? 'bg-purple-500/20' : 'bg-purple-100'
+                            }`}>
+                                <Sparkles size={24} className={theme === 'dark' ? 'text-purple-400' : 'text-purple-600'} />
+                            </div>
+                            <div>
+                                <h3 className={`text-lg font-bold mb-1 ${
+                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                }`}>
+                                    Get AI Study Recommendations
+                                </h3>
+                                <p className={`text-sm ${
+                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-700'
+                                }`}>
+                                    Receive personalized study insights based on your assessment performance
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleGetRecommendations}
+                            disabled={loadingRecommendations}
+                            className={`flex items-center gap-2 px-6 py-3 rounded-xl shadow-lg transition-all duration-200 font-medium whitespace-nowrap ${
+                                loadingRecommendations
+                                    ? 'opacity-50 cursor-not-allowed'
+                                    : 'hover:shadow-xl hover:scale-105'
+                            } ${
+                                theme === 'dark'
+                                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white'
+                                    : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white'
+                            }`}
+                        >
+                            {loadingRecommendations ? (
+                                <>
+                                    <Loader className="w-5 h-5 animate-spin" />
+                                    <span>Analyzing...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <TrendingUp size={20} />
+                                    <span>Get Recommendations</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                    {recommendationError && (
+                        <div className={`mt-4 p-3 rounded-lg border-l-4 ${
+                            theme === 'dark'
+                                ? 'bg-red-900/20 border-red-500 text-red-400'
+                                : 'bg-red-50 border-red-500 text-red-700'
+                        }`}>
+                            <p className="text-sm font-medium">{recommendationError}</p>
+                        </div>
+                    )}
+                </div>
             </div>
 
+            {/* Recommendations Modal */}
+            {showRecommendations && recommendations && <RecommendationsModal />}
+
+            {/* Add fade-in animation */}
             <style jsx>{`
                 @keyframes fade-in {
                     from {

@@ -387,6 +387,149 @@ def ocr_extract_and_solve():
         return jsonify({"error": str(e)}), 500
 
 
+# ---------- AI Recommendations Endpoint ----------
+
+@app.route('/ai/recommendations', methods=['POST'])
+def ai_recommendations():
+    """
+    Generate AI-powered study recommendations based on student's assessment history
+    Expects: JSON with 'assessments' array and 'student_name'
+    Returns: Personalized study recommendations
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        assessments = data.get('assessments', [])
+        student_name = data.get('student_name', 'Student')
+        
+        if not assessments or len(assessments) == 0:
+            return jsonify({
+                "error": "No assessments found. Complete some assessments first to get recommendations."
+            }), 400
+        
+        # Calculate statistics
+        total_assessments = len(assessments)
+        total_marks = sum(a.get('marks', 0) for a in assessments)
+        avg_marks = total_marks / total_assessments if total_assessments > 0 else 0
+        
+        highest_score = max((a.get('marks', 0) for a in assessments), default=0)
+        lowest_score = min((a.get('marks', 0) for a in assessments), default=0)
+        
+        # Build detailed assessment summary
+        assessment_details = []
+        for idx, assessment in enumerate(assessments, 1):
+            topic = assessment.get('topic', 'Unknown Topic')
+            heading = assessment.get('heading', 'Untitled')
+            marks = assessment.get('marks', 0)
+            time_taken = assessment.get('timeTaken', 'N/A')
+            total_questions = assessment.get('totalQuestions', 0)
+            correct = (marks * total_questions) // 100 if total_questions > 0 else 0
+            
+            assessment_details.append(
+                f"{idx}. {heading} ({topic})\n"
+                f"   Score: {marks}% ({correct}/{total_questions} correct)\n"
+                f"   Time: {time_taken}"
+            )
+        
+        # Create AI prompt
+        prompt = f"""You are an expert educational AI tutor analyzing student performance data.
+
+**Student Profile:**
+- Name: {student_name}
+- Total Assessments: {total_assessments}
+- Average Score: {avg_marks:.1f}%
+- Highest Score: {highest_score}%
+- Lowest Score: {lowest_score}%
+
+**Assessment History:**
+{chr(10).join(assessment_details)}
+
+**Task:** Based on this performance data, provide comprehensive study recommendations in the following format:
+
+## 1. Performance Overview
+Analyze the student's overall performance, identify patterns, strengths, and areas needing improvement.
+
+## 2. Key Strengths
+List 2-3 specific topics or areas where the student excels.
+
+## 3. Areas for Improvement
+Identify 2-3 topics that need more attention with specific reasons.
+
+## 4. Personalized Study Plan
+Provide 4-5 actionable study recommendations:
+- Specific topics to focus on
+- Study techniques that would work best
+- Time management strategies
+- Practice methods
+
+## 5. Motivational Message
+Provide encouraging words and realistic goal-setting advice.
+
+## 6. Next Steps (Action Items)
+List 3-4 concrete actions the student should take immediately.
+
+Be specific, encouraging, and reference actual assessment data. Keep the tone supportive and educational."""
+
+        print(f"\n{'='*60}")
+        print(f"Generating AI recommendations for: {student_name}")
+        print(f"Total assessments analyzed: {total_assessments}")
+        print(f"Average score: {avg_marks:.1f}%")
+        print(f"{'='*60}\n")
+        
+        # Use Groq API directly for better error handling
+        import os
+        from groq import Groq
+        
+        groq_api_key = os.getenv('GROQ_API_KEY')
+        if not groq_api_key:
+            return jsonify({"error": "AI service configuration error"}), 500
+        
+        client = Groq(api_key=groq_api_key)
+        
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert educational AI tutor specializing in personalized learning recommendations."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            model="llama-3.3-70b-versatile",
+            temperature=0.7,
+            max_tokens=2000
+        )
+        
+        recommendations = chat_completion.choices[0].message.content
+        
+        print("✓ AI recommendations generated successfully\n")
+        
+        return jsonify({
+            "success": True,
+            "student_name": student_name,
+            "total_assessments": total_assessments,
+            "average_score": round(avg_marks, 1),
+            "recommendations": recommendations,
+            "summary": {
+                "total_assessments": total_assessments,
+                "average_score": round(avg_marks, 1),
+                "highest_score": highest_score,
+                "lowest_score": lowest_score
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"✗ Error generating AI recommendations: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Failed to generate recommendations: {str(e)}"}), 500
+
+
 # ---------- Error Handlers ----------
 
 @app.errorhandler(404)

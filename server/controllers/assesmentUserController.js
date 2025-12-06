@@ -100,3 +100,64 @@ exports.getAssessmentResult = async (req, res) => {
     return res.status(500).json({ error: 'Server error' });
   }
 };
+
+/**
+ * Get all assessments for a student (raw data, no populate)
+ * This will be used for AI recommendations
+ * params: studentId
+ */
+exports.getStudentAssessmentsRaw = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    if (!studentId) {
+      return res.status(400).json({ error: 'studentId is required' });
+    }
+
+    // Fetch assessments without populate
+    const records = await AssesmentUser.find({ studentId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!records || records.length === 0) {
+      return res.status(404).json({ 
+        error: 'No assessments found. Complete some assessments first to get recommendations.' 
+      });
+    }
+
+    // Now fetch the assessment details separately
+    const assessmentIds = records.map(r => r.assesmentId);
+    const assessments = await Assesment.find({ _id: { $in: assessmentIds } })
+      .select('heading topic questions')
+      .lean();
+
+    // Create a map for quick lookup
+    const assessmentMap = {};
+    assessments.forEach(a => {
+      assessmentMap[a._id.toString()] = a;
+    });
+
+    // Combine the data
+    const combinedData = records.map(record => {
+      const assessment = assessmentMap[record.assesmentId.toString()] || {};
+      return {
+        marks: record.marks || 0,
+        timeTaken: record.timeTaken || 'N/A',
+        completedAt: record.createdAt,
+        topic: assessment.topic || 'Unknown Topic',
+        heading: assessment.heading || 'Untitled',
+        totalQuestions: assessment.questions ? assessment.questions.length : 0
+      };
+    });
+
+    return res.json({
+      success: true,
+      assessments: combinedData
+    });
+
+  } catch (err) {
+    console.error('Error fetching student assessments:', err);
+    return res.status(500).json({ 
+      error: 'Failed to fetch assessments' 
+    });
+  }
+};
