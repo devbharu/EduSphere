@@ -35,6 +35,7 @@ import DocEditor from './pages/student/DocEditor';
 // Assessment pages (Used by both roles)
 import AssessmentQuiz from './pages/student/AssignmentAssessment/AssessmentQuiz';
 import UploadAssessment from './pages/student/AssignmentAssessment/UploadAssessment';
+import AiAssessmentGeneration from './pages/student/AssignmentAssessment/AiAssessmentGeneration';
 
 // Teacher pages
 import TeacherDashboard from './pages/teacher/Dashboard';
@@ -143,11 +144,21 @@ function App() {
                 </PrivateRoute>
               }
             />
+
             <Route
               path="/assessment/:assessmentId"
               element={
                 <PrivateRoute allowedRoles={['student']}>
                   <AssessmentQuiz />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/assignments/ai-generate"
+              element={
+                <PrivateRoute allowedRoles={['teacher']}>
+                  <AiAssessmentGeneration />
                 </PrivateRoute>
               }
             />

@@ -16,7 +16,8 @@ import {
     Users,
     Award,
     BookOpen,
-    TrendingUp
+    TrendingUp,
+    Sparkles
 } from 'lucide-react';
 import ThemeToggle from '../../../components/ThemeToggle';
 
@@ -295,13 +296,22 @@ const UploadAssessment = () => {
                                 </p>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200"
-                        >
-                            <Plus size={20} />
-                            <span>Create Assessment</span>
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => navigate('/assignments/ai-generate')}
+                                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200"
+                            >
+                                <Sparkles size={20} />
+                                <span>AI Generate</span>
+                            </button>
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200"
+                            >
+                                <Plus size={20} />
+                                <span>Create Assessment</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
