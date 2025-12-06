@@ -183,7 +183,7 @@ const UploadAssessment = () => {
 
     const handleViewDetails = async (assessment) => {
         setSelectedAssessment(assessment);
-        // console.log(assessment._id)
+        console.log(assessment._id)
         await loadStudentResults(assessment._id);
         setShowDetailsModal(true);
     };
