@@ -60,9 +60,10 @@ exports.getResultsByAssessmentId = async (req, res) => {
     if (!assessmentId) return res.status(400).json({ error: 'assessmentId is required' });
 
     const records = await AssesmentUser.find({ assesmentId: assessmentId })
-      .populate('studentId', 'name email')
-      .sort({ createdAt: -1 })
-      .lean();
+      .sort({ createdAt: -1 });
+
+
+      // console.log(records)
 
     return res.json({ success: true, records });
   } catch (err) {

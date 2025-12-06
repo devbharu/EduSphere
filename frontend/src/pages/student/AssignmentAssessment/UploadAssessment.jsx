@@ -93,6 +93,7 @@ const UploadAssessment = () => {
             }
 
             const data = await response.json();
+            // console.log(data.records)
             setStudentResults(data.records || []);
         } catch (err) {
             console.error('Failed to load student results:', err);
@@ -181,6 +182,7 @@ const UploadAssessment = () => {
 
     const handleViewDetails = async (assessment) => {
         setSelectedAssessment(assessment);
+        // console.log(assessment._id)
         await loadStudentResults(assessment._id);
         setShowDetailsModal(true);
     };
