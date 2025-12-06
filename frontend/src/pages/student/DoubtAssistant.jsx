@@ -12,12 +12,13 @@ import {
 } from 'lucide-react';
 import UploadSolve from './AI_features/UploadSolve';
 import ChatAI from './AI_features/ChatAI';
+import SummariseYoutube from './AI_features/SummariseYoutube';
 import ThemeToggle from '../../components/ThemeToggle';
 
 const DoubtAssistant = () => {
     const navigate = useNavigate();
     const { theme } = useTheme();
-    const [activeTab, setActiveTab] = useState('upload'); // upload or chat
+    const [activeTab, setActiveTab] = useState('upload'); // upload, chat, or youtube
 
     return (
         <div className={`min-h-screen transition-colors duration-300 ${
@@ -59,13 +60,13 @@ const DoubtAssistant = () => {
                             <p className={`text-sm ${
                                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                             }`}>
-                                Upload handwritten questions or chat with AI
+                                Upload questions, chat with AI, or summarize videos
                             </p>
                         </div>
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex gap-4 mt-6">
+                    <div className="flex flex-wrap gap-3 mt-6">
                         <button
                             onClick={() => setActiveTab('upload')}
                             className={`px-6 py-2.5 rounded-xl font-medium transition-all duration-200 ${
@@ -94,13 +95,29 @@ const DoubtAssistant = () => {
                         >
                             Chat with AI
                         </button>
+                        <button
+                            onClick={() => setActiveTab('youtube')}
+                            className={`px-6 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                                activeTab === 'youtube'
+                                    ? theme === 'dark'
+                                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg'
+                                        : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg'
+                                    : theme === 'dark'
+                                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                        >
+                            YouTube Summary
+                        </button>
                     </div>
                 </div>
             </div>
 
             {/* Content */}
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {activeTab === 'upload' ? <UploadSolve /> : <ChatAI />}
+                {activeTab === 'upload' && <UploadSolve />}
+                {activeTab === 'chat' && <ChatAI />}
+                {activeTab === 'youtube' && <SummariseYoutube />}
             </div>
         </div>
     );
