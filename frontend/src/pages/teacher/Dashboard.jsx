@@ -17,14 +17,15 @@ import {
     ArrowRight,
     Activity,
     CheckCircle,
-    AlertCircle
+    AlertCircle,
+    LogOut
 } from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
 
 const TeacherDashboard = () => {
     const navigate = useNavigate();
     const { theme } = useTheme();
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
 
     const [assessments, setAssessments] = useState([]);
     const [allResults, setAllResults] = useState([]);
@@ -87,6 +88,20 @@ const TeacherDashboard = () => {
             console.error('Failed to load dashboard data:', error);
             setLoading(false);
         }
+    };
+
+    const handleLogout = () => {
+        // Clear authentication data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        // Call logout from AuthContext if available
+        if (logout) {
+            logout();
+        }
+        
+        // Redirect to login page
+        navigate('/login');
     };
 
     const getRecentAssessments = () => {
@@ -173,13 +188,27 @@ const TeacherDashboard = () => {
                                 Here's what's happening with your assessments today
                             </p>
                         </div>
-                        <button
-                            onClick={() => navigate('/assignments/upload')}
-                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200"
-                        >
-                            <Plus size={20} />
-                            <span>Create Assessment</span>
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => navigate('/assignments/upload')}
+                                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200"
+                            >
+                                <Plus size={20} />
+                                <span className="hidden sm:inline">Create Assessment</span>
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                                    theme === 'dark'
+                                        ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20'
+                                        : 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                                }`}
+                                title="Logout"
+                            >
+                                <LogOut size={20} />
+                                <span className="hidden sm:inline">Logout</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
