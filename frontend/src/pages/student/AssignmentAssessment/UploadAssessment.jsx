@@ -273,7 +273,7 @@ const UploadAssessment = () => {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <button
-                                onClick={() => navigate('/assignments')}
+                                onClick={() => navigate('/teacher/dashboard')}
                                 className={`p-2.5 rounded-xl transition-all duration-200 ${
                                     theme === 'dark'
                                         ? 'hover:bg-gray-700'
