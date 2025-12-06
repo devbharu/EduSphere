@@ -23,64 +23,97 @@ const Assessments = () => {
     const [assessments, setAssessments] = useState([]);
     const [userResults, setUserResults] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
-        loadAssessments();
-        loadUserResults();
-    }, []);
+        if (user?._id) {
+            loadData();
+        }
+    }, [user]);
+
+    const loadData = async () => {
+        try {
+            setLoading(true);
+            setError('');
+
+            // Load both assessments and user results in parallel
+            await Promise.all([
+                loadAssessments(),
+                loadUserResults()
+            ]);
+
+            setLoading(false);
+        } catch (err) {
+            console.error('Failed to load data:', err);
+            setError('Failed to load assessments. Please try again.');
+            setLoading(false);
+        }
+    };
 
     const loadAssessments = async () => {
         try {
-            // TODO: Replace with actual API call to get all assessments
-            // GET http://localhost:5000/api/assessments
-            setLoading(true);
-            setTimeout(() => {
-                setAssessments([
-                    {
-                        _id: '1',
-                        heading: 'Algebra Fundamentals',
-                        topic: 'Linear Equations',
-                        questions: [
-                            {
-                                questionText: 'Solve 2x + 5 = 15',
-                                options: [{text: 'x=4'}, {text: 'x=5'}, {text: 'x=6'}, {text: 'x=3'}],
-                                correctAnswer: 1
-                            }
-                        ],
-                        totalQuestions: 10
-                    },
-                    {
-                        _id: '2',
-                        heading: 'Physics Basics',
-                        topic: 'Newton\'s Laws',
-                        questions: [],
-                        totalQuestions: 15
-                    }
-                ]);
-                setLoading(false);
-            }, 1000);
+            const response = await fetch('http://localhost:5000/api/assessments', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch assessments');
+            }
+
+            const data = await response.json();
+            
+            // Handle different response formats
+            if (Array.isArray(data)) {
+                setAssessments(data);
+            } else if (data.assessments && Array.isArray(data.assessments)) {
+                setAssessments(data.assessments);
+            } else {
+                setAssessments([]);
+            }
         } catch (error) {
             console.error('Failed to load assessments:', error);
-            setLoading(false);
+            throw error;
         }
     };
 
     const loadUserResults = async () => {
         try {
-            if (!user?._id) return;
-            // TODO: Replace with actual API call
-            // GET http://localhost:5000/api/assessment-users/user/{studentId}
-            setTimeout(() => {
-                setUserResults([
-                    {
-                        assesmentId: '1',
-                        marks: 85
-                    }
-                ]);
-            }, 1000);
+            if (!user?._id) {
+                console.warn('User ID not available');
+                return;
+            }
+
+            const response = await fetch(`http://localhost:5000/api/assessment-users/user/${user._id}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch user results');
+            }
+
+            const data = await response.json();
+            
+            // Handle different response formats
+            if (data.success && Array.isArray(data.records)) {
+                setUserResults(data.records);
+            } else if (Array.isArray(data)) {
+                setUserResults(data);
+            } else {
+                setUserResults([]);
+            }
         } catch (error) {
             console.error('Failed to load user results:', error);
+            // Don't throw - user might not have attempted any assessments yet
+            setUserResults([]);
         }
     };
 
@@ -90,7 +123,10 @@ const Assessments = () => {
     };
 
     const getUserResult = (assessmentId) => {
-        return userResults.find(r => r.assesmentId === assessmentId);
+        return userResults.find(r => 
+            r.assesmentId === assessmentId || 
+            r.assesmentId?._id === assessmentId
+        );
     };
 
     const filteredAssessments = assessments.filter(assessment =>
@@ -125,6 +161,36 @@ const Assessments = () => {
                         Loading assessments...
                     </p>
                 </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className={`text-center py-16 rounded-2xl border ${
+                theme === 'dark'
+                    ? 'bg-gray-800/50 border-gray-700'
+                    : 'bg-white border-gray-200'
+            }`}>
+                <div className={`inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4 ${
+                    theme === 'dark' ? 'bg-red-500/20' : 'bg-red-100'
+                }`}>
+                    <AlertCircle size={40} className="text-red-500" />
+                </div>
+                <h3 className={`text-xl font-bold mb-2 ${
+                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}>
+                    Failed to Load Assessments
+                </h3>
+                <p className={`mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {error}
+                </p>
+                <button
+                    onClick={loadData}
+                    className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-200"
+                >
+                    Try Again
+                </button>
             </div>
         );
     }
@@ -325,7 +391,7 @@ const Assessments = () => {
                                     theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                                 }`}>
                                     <Target size={16} />
-                                    <span>{assessment.totalQuestions || assessment.questions.length} Questions</span>
+                                    <span>{assessment.questions?.length || 0} Questions</span>
                                 </div>
 
                                 <div className={`flex items-center justify-between pt-4 border-t ${

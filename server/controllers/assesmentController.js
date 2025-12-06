@@ -1,6 +1,19 @@
 const Assesment = require('../models/assesment');
 
 /**
+ * Get all assessments
+ */
+exports.getAllAssessments = async (req, res) => {
+  try {
+    const assessments = await Assesment.find({}).sort({ createdAt: -1 });
+    return res.json({ success: true, assessments });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+};
+
+/**
  * Create a new assessment
  * body: { heading, topic, questions: [{ questionText, options: [{text},..4], correctAnswer }] }
  */
@@ -54,7 +67,7 @@ exports.deleteAssesment = async (req, res) => {
 };
 
 /**
- * Optional: Get assessment by id
+ * Get assessment by id
  */
 exports.getAssesmentById = async (req, res) => {
   try {

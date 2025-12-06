@@ -55,51 +55,30 @@ const AssessmentQuiz = () => {
             setLoading(true);
             setError('');
 
-            // TODO: Replace with actual API call
-            // GET http://localhost:5000/api/assessments/:id
-            setTimeout(() => {
-                setAssessment({
-                    _id: assessmentId,
-                    heading: 'Algebra Fundamentals',
-                    topic: 'Linear Equations',
-                    questions: [
-                        {
-                            questionText: 'Solve: 2x + 5 = 15',
-                            options: [
-                                { text: 'x = 4' },
-                                { text: 'x = 5' },
-                                { text: 'x = 6' },
-                                { text: 'x = 3' }
-                            ],
-                            correctAnswer: 1
-                        },
-                        {
-                            questionText: 'What is 3 + 2?',
-                            options: [
-                                { text: '4' },
-                                { text: '5' },
-                                { text: '6' },
-                                { text: '3' }
-                            ],
-                            correctAnswer: 1
-                        },
-                        {
-                            questionText: 'Solve: x - 7 = 10',
-                            options: [
-                                { text: 'x = 15' },
-                                { text: 'x = 17' },
-                                { text: 'x = 3' },
-                                { text: 'x = 12' }
-                            ],
-                            correctAnswer: 1
-                        }
-                    ]
-                });
-                setLoading(false);
-            }, 1000);
+            const response = await fetch(`http://localhost:5000/api/assessments/${assessmentId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to load assessment');
+            }
+
+            const data = await response.json();
+            
+            if (data.success && data.assesment) {
+                setAssessment(data.assesment);
+            } else {
+                throw new Error('Invalid assessment data');
+            }
+
+            setLoading(false);
         } catch (err) {
             console.error('Failed to load assessment:', err);
-            setError('Failed to load assessment. Please try again.');
+            setError(err.message || 'Failed to load assessment. Please try again.');
             setLoading(false);
         }
     };
@@ -148,24 +127,33 @@ const AssessmentQuiz = () => {
             const calculatedScore = calculateScore();
             setScore(calculatedScore);
 
-            // TODO: Replace with actual API call
-            // POST http://localhost:5000/api/assessment-users
-            // body: { assesmentId: assessmentId, studentId: user._id, marks: calculatedScore }
-
-            setTimeout(() => {
-                setShowResults(true);
-                setSubmitting(false);
-            }, 1000);
-
-            console.log('Submitting assessment:', {
-                assessmentId,
-                studentId: user?._id,
-                marks: calculatedScore,
-                answers: selectedAnswers
+            // Submit to backend
+            const response = await fetch('http://localhost:5000/api/assessment-users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    assesmentId: assessmentId,
+                    studentId: user._id,
+                    marks: calculatedScore
+                })
             });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to submit assessment');
+            }
+
+            const data = await response.json();
+            console.log('Assessment submitted successfully:', data);
+
+            setShowResults(true);
+            setSubmitting(false);
         } catch (err) {
             console.error('Failed to submit assessment:', err);
-            setError('Failed to submit assessment. Please try again.');
+            setError(err.message || 'Failed to submit assessment. Please try again.');
             setSubmitting(false);
         }
     };
@@ -547,7 +535,7 @@ const AssessmentQuiz = () => {
                                                         : 'border-gray-300'
                                             }`}>
                                                 {selectedAnswers[qIndex] === oIndex && (
-                                                    <CheckCircle size={16} className="text-white" />
+                                                    <div className="w-2 h-2 bg-white rounded-full" />
                                                 )}
                                             </div>
                                             <span className={`font-medium ${
