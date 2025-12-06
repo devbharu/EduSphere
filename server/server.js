@@ -6,12 +6,17 @@ const http = require("http");
 const connectDB = require("./config/db");
 const auth = require("./middleware/auth");
 
-// Routes
+// --- Routes ---
 const studentRoutes = require("./routes/user");
 const startUpRoutes = require('./routes/startUpRoutes');
 const chatRoutes = require('./routes/chat');
 const roomRoutes = require('./routes/rooms');
 const notesRoutes = require("./routes/Notes.js");
+
+// Live Class Routes (New)
+const liveClassRoutes = require('./routes/liveClasses');
+
+// Assessment Routes (New)
 const assesmentRoutes = require('./routes/assesmentRoutes');
 const assesmentUserRoutes = require('./routes/assesmentUserRoutes');
 
@@ -25,7 +30,6 @@ const app = express();
 const server = http.createServer(app);
 
 // CORS for Express (HTTP Routes)
-// Note: Socket.io CORS is handled inside socket/index.js
 app.use(cors({
     origin: "*", // Allow all origins for now (Change to specific frontend URL in production)
     credentials: true
@@ -34,21 +38,24 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// Public routes
+// --- Public Routes / General API Routes ---
 app.use("/api/auth", studentRoutes);
 app.use('/api/startUp', startUpRoutes);
-app.use('/api/assessments',assesmentRoutes);
-app.use('/api/assessment-users',assesmentUserRoutes);
+
+// Assessment Routes
+app.use('/api/assessments', assesmentRoutes);
+app.use('/api/assessment-users', assesmentUserRoutes);
 
 // Protected sample route
 app.get("/protected", auth, (req, res) => {
     res.json({ message: "Authenticated ✔", user: req.user });
 });
 
-// Chat, rooms & notes routes
+// --- Chat, Rooms, Live Classes & Notes Routes (Protected implicitly by subsequent middleware if applied) ---
 app.use("/api/chat", chatRoutes);
 app.use("/api/rooms", roomRoutes);
-app.use("/api/notes", notesRoutes); // Registering the notes route
+app.use("/api/notes", notesRoutes);
+app.use("/api/liveClasses", liveClassRoutes); // Live Class Route
 
 // Base route
 app.get("/", (req, res) => res.send("API is running ✔"));
@@ -62,5 +69,5 @@ server.listen(PORT, () => {
 
 // Initialize socket
 // This sets up the 'io' variable inside socket/index.js
-// So when /api/rooms calls getIO(), it finds the active instance.
+// So when route handlers call getIO(), it finds the active instance.
 initSocket(server);

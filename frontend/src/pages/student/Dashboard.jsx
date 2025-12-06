@@ -1,12 +1,16 @@
 /**
+ * src/pages/student/Dashboard.jsx
  * Student Dashboard - Main dashboard for students
- * Shows upcoming classes, deadlines, performance, and quick actions
+ * Shows upcoming classes, deadlines, performance, and quick actions,
+ * including dynamic fetching and display of Live Classes via WebRTCContext.
  */
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useWebRTCCall } from '../../context/WebRTCContext'; // <-- NEW IMPORT
+import CreateLiveClassModal from '../../components/CreateLiveClassModal'; // <-- NEW IMPORT
 import {
     BookOpen,
     Calendar,
@@ -25,8 +29,9 @@ import {
     Sparkles,
     Menu,
     X,
-    Pen,
-    HandCoins
+    PlusCircle, // For Create button
+    Pen,        // For Doodle/Docs
+    HandCoins   // For Fund Riser
 } from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
 
@@ -34,8 +39,21 @@ const Dashboard = () => {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const { theme } = useTheme();
+
+    // Context Hooks for Live Class Management
+    const {
+        activeLiveClasses,
+        fetchLiveClasses,
+        liveClassLoading: contextLoading,
+        liveClassError
+    } = useWebRTCCall();
+
     const [loading, setLoading] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false); // <-- NEW STATE for Modal
+
+    const isTeacher = user?.role === 'teacher'; // Assuming role check
+
     const [dashboardData, setDashboardData] = useState({
         upcomingClasses: [],
         recentAssignments: [],
@@ -47,20 +65,24 @@ const Dashboard = () => {
         },
     });
 
+    // --- Data Loading Effect ---
     useEffect(() => {
+        // Fetch Dashboard stats (dummy data)
         loadDashboardData();
+
+        // Fetch Live Classes from context API function
+        fetchLiveClasses();
     }, []);
 
     const loadDashboardData = async () => {
         try {
-            // TODO: Replace with actual API calls
             // Simulating API call with dummy data
             setTimeout(() => {
                 setDashboardData({
                     upcomingClasses: [
-                        { id: 1, name: 'Mathematics', time: '10:00 AM', date: 'Today', teacher: 'Mr. Johnson' },
-                        { id: 2, name: 'Physics', time: '2:00 PM', date: 'Today', teacher: 'Dr. Smith' },
-                        { id: 3, name: 'Chemistry', time: '11:00 AM', date: 'Tomorrow', teacher: 'Ms. Davis' },
+                        { id: 1, name: 'Mathematics (Review)', time: '10:00 AM', date: 'Today', teacher: 'Mr. Johnson' },
+                        { id: 2, name: 'Physics (Workshop)', time: '2:00 PM', date: 'Today', teacher: 'Dr. Smith' },
+                        { id: 3, name: 'Chemistry (Lecture)', time: '11:00 AM', date: 'Tomorrow', teacher: 'Ms. Davis' },
                     ],
                     recentAssignments: [
                         { id: 1, title: 'Calculus Problem Set', subject: 'Mathematics', due: '2 days', status: 'pending' },
@@ -82,28 +104,37 @@ const Dashboard = () => {
         }
     };
 
+    // --- Handlers ---
+
+    const handleClassCreationSuccess = (newClass) => {
+        // Navigate the creator (teacher) immediately to the new class.
+        navigate(`/live-class/${newClass._id}`);
+    };
+
+    const handleJoinClass = (classId) => {
+        // Navigate any user to the dedicated live class page
+        navigate(`/live-class/${classId}`);
+    };
+
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
 
-    if (loading) {
+    // Combine local loading and context loading for the initial screen
+    if (loading || contextLoading) {
         return (
-            <div className={`min-h-screen flex items-center justify-center ${
-                theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
-            }`}>
+            <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+                }`}>
                 <div className="text-center">
                     <div className="relative w-20 h-20 mx-auto mb-6">
-                        <div className={`absolute inset-0 border-4 ${
-                            theme === 'dark' ? 'border-blue-500/30' : 'border-blue-200'
-                        } rounded-full`}></div>
-                        <div className={`absolute inset-0 border-4 border-transparent ${
-                            theme === 'dark' ? 'border-t-blue-500' : 'border-t-blue-600'
-                        } rounded-full animate-spin`}></div>
+                        <div className={`absolute inset-0 border-4 ${theme === 'dark' ? 'border-blue-500/30' : 'border-blue-200'
+                            } rounded-full`}></div>
+                        <div className={`absolute inset-0 border-4 border-transparent ${theme === 'dark' ? 'border-t-blue-500' : 'border-t-blue-600'
+                            } rounded-full animate-spin`}></div>
                     </div>
-                    <p className={`text-lg font-medium ${
-                        theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
-                    }`}>
+                    <p className={`text-lg font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                        }`}>
                         Loading your dashboard...
                     </p>
                 </div>
@@ -112,73 +143,64 @@ const Dashboard = () => {
     }
 
     return (
-        <div className={`min-h-screen transition-colors duration-300 ${
-            theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
-        }`}>
+        <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+            }`}>
             {/* Top Navigation Bar */}
-            <nav className={`sticky top-0 z-40 ${
-                theme === 'dark' 
-                    ? 'bg-gray-800/95 border-gray-700' 
-                    : 'bg-white/95 border-gray-200'
-            } backdrop-blur-lg shadow-sm border-b transition-colors duration-300`}>
+            <nav className={`sticky top-0 z-40 ${theme === 'dark'
+                ? 'bg-gray-800/95 border-gray-700'
+                : 'bg-white/95 border-gray-200'
+                } backdrop-blur-lg shadow-sm border-b transition-colors duration-300`}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         {/* Logo */}
                         <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                                theme === 'dark'
-                                    ? 'bg-gradient-to-br from-blue-600 to-purple-600'
-                                    : 'bg-gradient-to-br from-blue-600 to-indigo-600'
-                            } shadow-lg`}>
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme === 'dark'
+                                ? 'bg-gradient-to-br from-blue-600 to-purple-600'
+                                : 'bg-gradient-to-br from-blue-600 to-indigo-600'
+                                } shadow-lg`}>
                                 <BookOpen className="text-white" size={24} />
                             </div>
-                            <span className={`text-xl font-bold ${
-                                theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>
+                            <span className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                }`}>
                                 EduSphere
                             </span>
                         </div>
 
                         {/* Desktop Right Side */}
                         <div className="hidden md:flex items-center gap-3">
-                            <button className={`relative p-2.5 rounded-xl transition-colors ${
-                                theme === 'dark'
-                                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                            }`}>
+                            <button className={`relative p-2.5 rounded-xl transition-colors ${theme === 'dark'
+                                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                }`}>
                                 <Bell size={20} />
                                 <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
                             </button>
 
                             <button
                                 onClick={() => navigate('/profile')}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
-                                    theme === 'dark'
-                                        ? 'hover:bg-gray-700'
-                                        : 'hover:bg-gray-100'
-                                }`}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${theme === 'dark'
+                                    ? 'hover:bg-gray-700'
+                                    : 'hover:bg-gray-100'
+                                    }`}
                             >
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                    theme === 'dark'
-                                        ? 'bg-blue-500/20 text-blue-400'
-                                        : 'bg-blue-100 text-blue-600'
-                                }`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${theme === 'dark'
+                                    ? 'bg-blue-500/20 text-blue-400'
+                                    : 'bg-blue-100 text-blue-600'
+                                    }`}>
                                     <User size={18} />
                                 </div>
-                                <span className={`text-sm font-medium ${
-                                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-                                }`}>
+                                <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                                    }`}>
                                     {user?.name}
                                 </span>
                             </button>
 
                             <button
                                 onClick={handleLogout}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${
-                                    theme === 'dark'
-                                        ? 'text-red-400 hover:bg-red-500/10'
-                                        : 'text-red-600 hover:bg-red-50'
-                                }`}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${theme === 'dark'
+                                    ? 'text-red-400 hover:bg-red-500/10'
+                                    : 'text-red-600 hover:bg-red-50'
+                                    }`}
                             >
                                 <LogOut size={18} />
                                 <span className="text-sm font-medium">Logout</span>
@@ -188,11 +210,10 @@ const Dashboard = () => {
                         {/* Mobile Menu Button */}
                         <button
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                            className={`md:hidden p-2 rounded-xl ${
-                                theme === 'dark'
-                                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                            }`}
+                            className={`md:hidden p-2 rounded-xl ${theme === 'dark'
+                                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                }`}
                         >
                             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                         </button>
@@ -200,28 +221,25 @@ const Dashboard = () => {
 
                     {/* Mobile Menu */}
                     {mobileMenuOpen && (
-                        <div className={`md:hidden py-4 border-t ${
-                            theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
-                        }`}>
+                        <div className={`md:hidden py-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                            }`}>
                             <div className="space-y-2">
                                 <button
                                     onClick={() => navigate('/profile')}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
-                                        theme === 'dark'
-                                            ? 'text-gray-300 hover:bg-gray-700'
-                                            : 'text-gray-700 hover:bg-gray-100'
-                                    }`}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${theme === 'dark'
+                                        ? 'text-gray-300 hover:bg-gray-700'
+                                        : 'text-gray-700 hover:bg-gray-100'
+                                        }`}
                                 >
                                     <User size={20} />
                                     <span>Profile</span>
                                 </button>
                                 <button
                                     onClick={handleLogout}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
-                                        theme === 'dark'
-                                            ? 'text-red-400 hover:bg-red-500/10'
-                                            : 'text-red-600 hover:bg-red-50'
-                                    }`}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${theme === 'dark'
+                                        ? 'text-red-400 hover:bg-red-500/10'
+                                        : 'text-red-600 hover:bg-red-50'
+                                        }`}
                                 >
                                     <LogOut size={20} />
                                     <span>Logout</span>
@@ -239,14 +257,12 @@ const Dashboard = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Welcome Section */}
                 <div className="mb-8 animate-fade-in">
-                    <h1 className={`text-3xl md:text-4xl font-bold mb-2 ${
-                        theme === 'dark' ? 'text-white' : 'text-gray-900'
-                    }`}>
+                    <h1 className={`text-3xl md:text-4xl font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`}>
                         Welcome back, {user?.name}! 👋
                     </h1>
-                    <p className={`text-lg ${
-                        theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
+                    <p className={`text-lg ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
                         Here's what's happening with your classes today.
                     </p>
                 </div>
@@ -254,35 +270,29 @@ const Dashboard = () => {
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8 animate-slide-up">
                     {/* Stat Card 1 - Completed Assignments */}
-                    <div className={`rounded-2xl shadow-lg p-6 border transition-all duration-300 hover:scale-105 ${
-                        theme === 'dark'
-                            ? 'bg-gradient-to-br from-gray-800 to-gray-800/50 border-gray-700 hover:border-green-500/50'
-                            : 'bg-white border-gray-100 hover:border-green-300'
-                    }`}>
+                    <div className={`rounded-2xl shadow-lg p-6 border transition-all duration-300 hover:scale-105 ${theme === 'dark'
+                        ? 'bg-gradient-to-br from-gray-800 to-gray-800/50 border-gray-700 hover:border-green-500/50'
+                        : 'bg-white border-gray-100 hover:border-green-300'
+                        }`}>
                         <div className="flex items-center justify-between mb-4">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                theme === 'dark'
-                                    ? 'bg-green-500/20'
-                                    : 'bg-green-100'
-                            }`}>
-                                <FileText className={`${
-                                    theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                                }`} size={24} />
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${theme === 'dark'
+                                ? 'bg-green-500/20'
+                                : 'bg-green-100'
+                                }`}>
+                                <FileText className={`${theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                                    }`} size={24} />
                             </div>
-                            <span className={`text-3xl font-bold ${
-                                theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>
+                            <span className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                }`}>
                                 {dashboardData.stats.completedAssignments}
                             </span>
                         </div>
-                        <p className={`text-sm font-medium ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+                        <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
                             Completed Assignments
                         </p>
-                        <div className={`mt-2 text-xs font-medium ${
-                            theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                        }`}>
+                        <div className={`mt-2 text-xs font-medium ${theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                            }`}>
                             <span className="flex items-center gap-1">
                                 <TrendingUp size={14} />
                                 Great progress!
@@ -291,35 +301,29 @@ const Dashboard = () => {
                     </div>
 
                     {/* Stat Card 2 - Pending Assignments */}
-                    <div className={`rounded-2xl shadow-lg p-6 border transition-all duration-300 hover:scale-105 ${
-                        theme === 'dark'
-                            ? 'bg-gradient-to-br from-gray-800 to-gray-800/50 border-gray-700 hover:border-yellow-500/50'
-                            : 'bg-white border-gray-100 hover:border-yellow-300'
-                    }`}>
+                    <div className={`rounded-2xl shadow-lg p-6 border transition-all duration-300 hover:scale-105 ${theme === 'dark'
+                        ? 'bg-gradient-to-br from-gray-800 to-gray-800/50 border-gray-700 hover:border-yellow-500/50'
+                        : 'bg-white border-gray-100 hover:border-yellow-300'
+                        }`}>
                         <div className="flex items-center justify-between mb-4">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                theme === 'dark'
-                                    ? 'bg-yellow-500/20'
-                                    : 'bg-yellow-100'
-                            }`}>
-                                <Clock className={`${
-                                    theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
-                                }`} size={24} />
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${theme === 'dark'
+                                ? 'bg-yellow-500/20'
+                                : 'bg-yellow-100'
+                                }`}>
+                                <Clock className={`${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
+                                    }`} size={24} />
                             </div>
-                            <span className={`text-3xl font-bold ${
-                                theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>
+                            <span className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                }`}>
                                 {dashboardData.stats.pendingAssignments}
                             </span>
                         </div>
-                        <p className={`text-sm font-medium ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+                        <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
                             Pending Assignments
                         </p>
-                        <div className={`mt-2 text-xs font-medium ${
-                            theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
-                        }`}>
+                        <div className={`mt-2 text-xs font-medium ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'
+                            }`}>
                             <span className="flex items-center gap-1">
                                 <Target size={14} />
                                 Stay on track
@@ -328,35 +332,29 @@ const Dashboard = () => {
                     </div>
 
                     {/* Stat Card 3 - Average Grade */}
-                    <div className={`rounded-2xl shadow-lg p-6 border transition-all duration-300 hover:scale-105 ${
-                        theme === 'dark'
-                            ? 'bg-gradient-to-br from-gray-800 to-gray-800/50 border-gray-700 hover:border-blue-500/50'
-                            : 'bg-white border-gray-100 hover:border-blue-300'
-                    }`}>
+                    <div className={`rounded-2xl shadow-lg p-6 border transition-all duration-300 hover:scale-105 ${theme === 'dark'
+                        ? 'bg-gradient-to-br from-gray-800 to-gray-800/50 border-gray-700 hover:border-blue-500/50'
+                        : 'bg-white border-gray-100 hover:border-blue-300'
+                        }`}>
                         <div className="flex items-center justify-between mb-4">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                theme === 'dark'
-                                    ? 'bg-blue-500/20'
-                                    : 'bg-blue-100'
-                            }`}>
-                                <Award className={`${
-                                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                                }`} size={24} />
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${theme === 'dark'
+                                ? 'bg-blue-500/20'
+                                : 'bg-blue-100'
+                                }`}>
+                                <Award className={`${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                                    }`} size={24} />
                             </div>
-                            <span className={`text-3xl font-bold ${
-                                theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>
+                            <span className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                }`}>
                                 {dashboardData.stats.averageGrade}%
                             </span>
                         </div>
-                        <p className={`text-sm font-medium ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+                        <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
                             Average Grade
                         </p>
-                        <div className={`mt-2 text-xs font-medium ${
-                            theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                        }`}>
+                        <div className={`mt-2 text-xs font-medium ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                            }`}>
                             <span className="flex items-center gap-1">
                                 <Sparkles size={14} />
                                 Excellent work!
@@ -365,35 +363,29 @@ const Dashboard = () => {
                     </div>
 
                     {/* Stat Card 4 - Attendance */}
-                    <div className={`rounded-2xl shadow-lg p-6 border transition-all duration-300 hover:scale-105 ${
-                        theme === 'dark'
-                            ? 'bg-gradient-to-br from-gray-800 to-gray-800/50 border-gray-700 hover:border-purple-500/50'
-                            : 'bg-white border-gray-100 hover:border-purple-300'
-                    }`}>
+                    <div className={`rounded-2xl shadow-lg p-6 border transition-all duration-300 hover:scale-105 ${theme === 'dark'
+                        ? 'bg-gradient-to-br from-gray-800 to-gray-800/50 border-gray-700 hover:border-purple-500/50'
+                        : 'bg-white border-gray-100 hover:border-purple-300'
+                        }`}>
                         <div className="flex items-center justify-between mb-4">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                theme === 'dark'
-                                    ? 'bg-purple-500/20'
-                                    : 'bg-purple-100'
-                            }`}>
-                                <Calendar className={`${
-                                    theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
-                                }`} size={24} />
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${theme === 'dark'
+                                ? 'bg-purple-500/20'
+                                : 'bg-purple-100'
+                                }`}>
+                                <Calendar className={`${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
+                                    }`} size={24} />
                             </div>
-                            <span className={`text-3xl font-bold ${
-                                theme === 'dark' ? 'text-white' : 'text-gray-900'
-                            }`}>
+                            <span className={`text-3xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                }`}>
                                 {dashboardData.stats.attendance}%
                             </span>
                         </div>
-                        <p className={`text-sm font-medium ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+                        <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
                             Attendance Rate
                         </p>
-                        <div className={`mt-2 text-xs font-medium ${
-                            theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
-                        }`}>
+                        <div className={`mt-2 text-xs font-medium ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
+                            }`}>
                             <span className="flex items-center gap-1">
                                 <TrendingUp size={14} />
                                 Keep it up!
@@ -404,70 +396,138 @@ const Dashboard = () => {
 
                 {/* Main Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-                    {/* Left Column - Upcoming Classes & Assignments */}
+                    {/* Left Column - Live Classes & Assignments */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Upcoming Classes */}
-                        <div className={`rounded-2xl shadow-lg p-6 border transition-colors duration-300 ${
-                            theme === 'dark'
-                                ? 'bg-gray-800/50 border-gray-700'
-                                : 'bg-white border-gray-100'
-                        }`}>
+
+                        {/* 🚀 Active Live Classes (DYNAMICALLY FETCHED) 🚀 */}
+                        <div className={`rounded-2xl shadow-lg p-6 border transition-colors duration-300 ${theme === 'dark'
+                            ? 'bg-gray-800/50 border-gray-700'
+                            : 'bg-white border-gray-100'
+                            }`}>
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className={`text-xl font-bold flex items-center gap-2 ${
-                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>
-                                    <Video size={24} className={`${
-                                        theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                                    }`} />
-                                    Upcoming Classes
+                                <h2 className={`text-xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                    }`}>
+                                    <Video size={24} className={`${theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                                        } animate-pulse`} />
+                                    Active Live Classes
                                 </h2>
-                                <button className={`text-sm font-medium transition-colors ${
-                                    theme === 'dark'
-                                        ? 'text-blue-400 hover:text-blue-300'
-                                        : 'text-blue-600 hover:text-blue-700'
-                                }`}>
+                                {/* Show Create button for teachers */}
+                                {isTeacher && (
+                                    <button
+                                        onClick={() => setIsModalOpen(true)}
+                                        className={`flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${theme === 'dark'
+                                            ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                            }`}
+                                    >
+                                        <PlusCircle size={16} /> Start New Class
+                                    </button>
+                                )}
+                            </div>
+
+                            {liveClassError && (
+                                <div className="p-3 mb-4 text-sm font-medium text-red-800 rounded-lg bg-red-100 dark:bg-red-900/30 dark:text-red-400">
+                                    Error loading classes: {liveClassError}
+                                </div>
+                            )}
+
+                            <div className="space-y-3">
+                                {activeLiveClasses.length === 0 && !liveClassError ? (
+                                    <div className={`p-4 rounded-xl ${theme === 'dark' ? 'bg-gray-700/50 text-gray-400' : 'bg-gray-100 text-gray-600'}`}>
+                                        <p className="font-medium">No live classes are currently active.</p>
+                                    </div>
+                                ) : (
+                                    activeLiveClasses.map((cls) => (
+                                        <div
+                                            key={cls._id}
+                                            onClick={() => handleJoinClass(cls._id)} // <-- Navigate to Live Class Page
+                                            className={`flex items-center justify-between p-4 rounded-xl transition-all duration-200 hover:scale-[1.02] cursor-pointer ${theme === 'dark'
+                                                ? 'bg-red-500/10 hover:bg-red-500/20 border border-red-500/30'
+                                                : 'bg-red-50 hover:bg-red-100 border border-red-200'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${theme === 'dark'
+                                                    ? 'bg-red-500/20'
+                                                    : 'bg-red-100'
+                                                    }`}>
+                                                    <Video className={`${theme === 'dark' ? 'text-red-400' : 'text-red-600'
+                                                        }`} size={20} />
+                                                </div>
+                                                <div>
+                                                    <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                                        }`}>
+                                                        {cls.title}
+                                                    </h3>
+                                                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                                        }`}>
+                                                        {cls.teacherName || 'Unknown Teacher'} - {cls.subject}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <button className="px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+                                                    Join Live
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+
+                        {/* Scheduled Upcoming Classes (DUMMY DATA) */}
+                        <div className={`rounded-2xl shadow-lg p-6 border transition-colors duration-300 ${theme === 'dark'
+                            ? 'bg-gray-800/50 border-gray-700'
+                            : 'bg-white border-gray-100'
+                            }`}>
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className={`text-xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                    }`}>
+                                    <Calendar size={24} className={`${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                                        }`} />
+                                    Scheduled Events
+                                </h2>
+                                <button className={`text-sm font-medium transition-colors ${theme === 'dark'
+                                    ? 'text-blue-400 hover:text-blue-300'
+                                    : 'text-blue-600 hover:text-blue-700'
+                                    }`}>
                                     View All →
                                 </button>
                             </div>
                             <div className="space-y-3">
                                 {dashboardData.upcomingClasses.map((cls) => (
-                                    <div key={cls.id} className={`flex items-center justify-between p-4 rounded-xl transition-all duration-200 hover:scale-[1.02] cursor-pointer ${
-                                        theme === 'dark'
-                                            ? 'bg-gray-700/50 hover:bg-gray-700'
-                                            : 'bg-gray-50 hover:bg-gray-100'
-                                    }`}>
+                                    <div key={cls.id} className={`flex items-center justify-between p-4 rounded-xl transition-all duration-200 hover:scale-[1.02] cursor-pointer ${theme === 'dark'
+                                        ? 'bg-gray-700/50 hover:bg-gray-700'
+                                        : 'bg-gray-50 hover:bg-gray-100'
+                                        }`}>
                                         <div className="flex items-center gap-4">
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                                theme === 'dark'
-                                                    ? 'bg-blue-500/20'
-                                                    : 'bg-blue-100'
-                                            }`}>
-                                                <Video className={`${
-                                                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                                                }`} size={20} />
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${theme === 'dark'
+                                                ? 'bg-blue-500/20'
+                                                : 'bg-blue-100'
+                                                }`}>
+                                                <Video className={`${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                                                    }`} size={20} />
                                             </div>
                                             <div>
-                                                <h3 className={`font-semibold ${
-                                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                                }`}>
+                                                <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                                    }`}>
                                                     {cls.name}
                                                 </h3>
-                                                <p className={`text-sm ${
-                                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                                }`}>
+                                                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                                    }`}>
                                                     {cls.teacher}
                                                 </p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className={`text-sm font-medium ${
-                                                theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                            }`}>
+                                            <p className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                                }`}>
                                                 {cls.time}
                                             </p>
-                                            <p className={`text-xs ${
-                                                theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
-                                            }`}>
+                                            <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                                                }`}>
                                                 {cls.date}
                                             </p>
                                         </div>
@@ -477,65 +537,56 @@ const Dashboard = () => {
                         </div>
 
                         {/* Recent Assignments */}
-                        <div className={`rounded-2xl shadow-lg p-6 border transition-colors duration-300 ${
-                            theme === 'dark'
-                                ? 'bg-gray-800/50 border-gray-700'
-                                : 'bg-white border-gray-100'
-                        }`}>
+                        <div className={`rounded-2xl shadow-lg p-6 border transition-colors duration-300 ${theme === 'dark'
+                            ? 'bg-gray-800/50 border-gray-700'
+                            : 'bg-white border-gray-100'
+                            }`}>
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className={`text-xl font-bold flex items-center gap-2 ${
-                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>
-                                    <FileText size={24} className={`${
-                                        theme === 'dark' ? 'text-green-400' : 'text-green-600'
-                                    }`} />
+                                <h2 className={`text-xl font-bold flex items-center gap-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                    }`}>
+                                    <FileText size={24} className={`${theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                                        }`} />
                                     Recent Assignments
                                 </h2>
                                 <button
                                     onClick={() => navigate('/assignments')}
-                                    className={`text-sm font-medium transition-colors ${
-                                        theme === 'dark'
-                                            ? 'text-blue-400 hover:text-blue-300'
-                                            : 'text-blue-600 hover:text-blue-700'
-                                    }`}
+                                    className={`text-sm font-medium transition-colors ${theme === 'dark'
+                                        ? 'text-blue-400 hover:text-blue-300'
+                                        : 'text-blue-600 hover:text-blue-700'
+                                        }`}
                                 >
                                     View All →
                                 </button>
                             </div>
                             <div className="space-y-3">
                                 {dashboardData.recentAssignments.map((assignment) => (
-                                    <div key={assignment.id} className={`flex items-center justify-between p-4 rounded-xl transition-all duration-200 hover:scale-[1.02] cursor-pointer ${
-                                        theme === 'dark'
-                                            ? 'bg-gray-700/50 hover:bg-gray-700'
-                                            : 'bg-gray-50 hover:bg-gray-100'
-                                    }`}>
+                                    <div key={assignment.id} className={`flex items-center justify-between p-4 rounded-xl transition-all duration-200 hover:scale-[1.02] cursor-pointer ${theme === 'dark'
+                                        ? 'bg-gray-700/50 hover:bg-gray-700'
+                                        : 'bg-gray-50 hover:bg-gray-100'
+                                        }`}>
                                         <div className="flex-1">
-                                            <h3 className={`font-semibold mb-1 ${
-                                                theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                            }`}>
+                                            <h3 className={`font-semibold mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                                }`}>
                                                 {assignment.title}
                                             </h3>
-                                            <p className={`text-sm ${
-                                                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                            }`}>
+                                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                                }`}>
                                                 {assignment.subject}
                                             </p>
                                         </div>
                                         <div>
                                             {assignment.status === 'submitted' ? (
-                                                <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                                                    theme === 'dark'
-                                                        ? 'bg-green-500/20 text-green-400'
-                                                        : 'bg-green-100 text-green-800'
-                                                }`}>
+                                                <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold ${theme === 'dark'
+                                                    ? 'bg-green-500/20 text-green-400'
+                                                    : 'bg-green-100 text-green-800'
+                                                    }`}>
                                                     ✓ Submitted
                                                 </span>
                                             ) : (
-                                                <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                                                    theme === 'dark'
-                                                        ? 'bg-yellow-500/20 text-yellow-400'
-                                                        : 'bg-yellow-100 text-yellow-800'
-                                                }`}>
+                                                <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold ${theme === 'dark'
+                                                    ? 'bg-yellow-500/20 text-yellow-400'
+                                                    : 'bg-yellow-100 text-yellow-800'
+                                                    }`}>
                                                     Due in {assignment.due}
                                                 </span>
                                             )}
@@ -548,198 +599,165 @@ const Dashboard = () => {
 
                     {/* Right Column - Quick Actions */}
                     <div className="space-y-6">
-                        <div className={`rounded-2xl shadow-lg p-6 border transition-colors duration-300 ${
-                            theme === 'dark'
-                                ? 'bg-gray-800/50 border-gray-700'
-                                : 'bg-white border-gray-100'
-                        }`}>
-                            <h2 className={`text-xl font-bold mb-6 ${
-                                theme === 'dark' ? 'text-white' : 'text-gray-900'
+                        <div className={`rounded-2xl shadow-lg p-6 border transition-colors duration-300 ${theme === 'dark'
+                            ? 'bg-gray-800/50 border-gray-700'
+                            : 'bg-white border-gray-100'
                             }`}>
+                            <h2 className={`text-xl font-bold mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                }`}>
                                 Quick Actions
                             </h2>
                             <div className="space-y-3">
                                 <button
                                     onClick={() => navigate('/live-class/1')}
-                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${
-                                        theme === 'dark'
-                                            ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 hover:from-blue-600/30 hover:to-purple-600/30 border border-blue-500/30'
-                                            : 'bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100'
-                                    }`}
+                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${theme === 'dark'
+                                        ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 hover:from-blue-600/30 hover:to-purple-600/30 border border-blue-500/30'
+                                        : 'bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100'
+                                        }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <Video className={`${
-                                            theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                                        }`} size={20} />
-                                        <span className={`font-medium ${
-                                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                        }`}>
+                                        <Video className={`${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                                            }`} size={20} />
+                                        <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                            }`}>
                                             Join Live Class
                                         </span>
                                     </div>
-                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${
-                                        theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
-                                    }`} size={20} />
+                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                                        }`} size={20} />
                                 </button>
 
                                 <button
                                     onClick={() => navigate('/assignments')}
-                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${
-                                        theme === 'dark'
-                                            ? 'bg-gray-700/50 hover:bg-gray-700'
-                                            : 'bg-gray-50 hover:bg-gray-100'
-                                    }`}
+                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${theme === 'dark'
+                                        ? 'bg-gray-700/50 hover:bg-gray-700'
+                                        : 'bg-gray-50 hover:bg-gray-100'
+                                        }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <FileText className={`${
-                                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                        }`} size={20} />
-                                        <span className={`font-medium ${
-                                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                        }`}>
+                                        <FileText className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                            }`} size={20} />
+                                        <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                            }`}>
                                             View Assignments
                                         </span>
                                     </div>
-                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${
-                                        theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-                                    }`} size={20} />
+                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                                        }`} size={20} />
                                 </button>
 
                                 <button
                                     onClick={() => navigate('/materials')}
-                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${
-                                        theme === 'dark'
-                                            ? 'bg-gray-700/50 hover:bg-gray-700'
-                                            : 'bg-gray-50 hover:bg-gray-100'
-                                    }`}
+                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${theme === 'dark'
+                                        ? 'bg-gray-700/50 hover:bg-gray-700'
+                                        : 'bg-gray-50 hover:bg-gray-100'
+                                        }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <BookOpen className={`${
-                                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                        }`} size={20} />
-                                        <span className={`font-medium ${
-                                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                        }`}>
+                                        <BookOpen className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                            }`} size={20} />
+                                        <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                            }`}>
                                             Study Materials
                                         </span>
                                     </div>
-                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${
-                                        theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-                                    }`} size={20} />
+                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                                        }`} size={20} />
                                 </button>
 
+                                {/* NEW: Doodle/Docs Quick Action */}
                                 <button
                                     onClick={() => navigate('/docs')}
-                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${
-                                        theme === 'dark'
-                                            ? 'bg-gray-700/50 hover:bg-gray-700'
-                                            : 'bg-gray-50 hover:bg-gray-100'
-                                    }`}
+                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${theme === 'dark'
+                                        ? 'bg-gray-700/50 hover:bg-gray-700'
+                                        : 'bg-gray-50 hover:bg-gray-100'
+                                        }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <Pen className={`${
-                                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                        }`} size={20} />
-                                        <span className={`font-medium ${
-                                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                        }`}>
+                                        <Pen className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                            }`} size={20} />
+                                        <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                            }`}>
                                             Doodle
                                         </span>
                                     </div>
-                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${
-                                        theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-                                    }`} size={20} />
+                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                                        }`} size={20} />
                                 </button>
 
                                 <button
                                     onClick={() => navigate('/chat')}
-                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${
-                                        theme === 'dark'
-                                            ? 'bg-gray-700/50 hover:bg-gray-700'
-                                            : 'bg-gray-50 hover:bg-gray-100'
-                                    }`}
+                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${theme === 'dark'
+                                        ? 'bg-gray-700/50 hover:bg-gray-700'
+                                        : 'bg-gray-50 hover:bg-gray-100'
+                                        }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <MessageSquare className={`${
-                                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                        }`} size={20} />
-                                        <span className={`font-medium ${
-                                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                        }`}>
+                                        <MessageSquare className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                            }`} size={20} />
+                                        <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                            }`}>
                                             Class Chat
                                         </span>
                                     </div>
-                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${
-                                        theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-                                    }`} size={20} />
+                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                                        }`} size={20} />
                                 </button>
 
                                 <button
                                     onClick={() => navigate('/startUp-fundRiser')}
-                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${
-                                        theme === 'dark'
-                                            ? 'bg-gray-700/50 hover:bg-gray-700'
-                                            : 'bg-gray-50 hover:bg-gray-100'
-                                    }`}
+                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${theme === 'dark'
+                                        ? 'bg-gray-700/50 hover:bg-gray-700'
+                                        : 'bg-gray-50 hover:bg-gray-100'
+                                        }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <HandCoins className={`${
-                                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                        }`} size={20} />
-                                        <span className={`font-medium ${
-                                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                        }`}>
+                                        <HandCoins className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                            }`} size={20} />
+                                        <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                            }`}>
                                             Fund Riser
                                         </span>
                                     </div>
-                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${
-                                        theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-                                    }`} size={20} />
+                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                                        }`} size={20} />
                                 </button>
 
                                 <button
                                     onClick={() => navigate('/doubt-assistant')}
-                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${
-                                        theme === 'dark'
-                                            ? 'bg-gradient-to-r from-indigo-600/20 to-purple-600/20 hover:from-indigo-600/30 hover:to-purple-600/30 border border-indigo-500/30'
-                                            : 'bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100'
-                                    }`}
+                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${theme === 'dark'
+                                        ? 'bg-gradient-to-r from-indigo-600/20 to-purple-600/20 hover:from-indigo-600/30 hover:to-purple-600/30 border border-indigo-500/30'
+                                        : 'bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100'
+                                        }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <HelpCircle className={`${
-                                            theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'
-                                        }`} size={20} />
-                                        <span className={`font-medium ${
-                                            theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                        }`}>
+                                        <HelpCircle className={`${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'
+                                            }`} size={20} />
+                                        <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                            }`}>
                                             AI Doubt Assistant
                                         </span>
                                     </div>
-                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${
-                                        theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'
-                                    }`} size={20} />
+                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'
+                                        }`} size={20} />
                                 </button>
-
-                                
                             </div>
                         </div>
 
                         {/* Motivational Card */}
-                        <div className={`rounded-2xl shadow-lg p-6 border transition-colors duration-300 ${
-                            theme === 'dark'
-                                ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border-purple-500/30'
-                                : 'bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200'
-                        }`}>
+                        <div className={`rounded-2xl shadow-lg p-6 border transition-colors duration-300 ${theme === 'dark'
+                            ? 'bg-gradient-to-br from-purple-900/30 to-pink-900/30 border-purple-500/30'
+                            : 'bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200'
+                            }`}>
                             <div className="text-center">
                                 <div className="text-4xl mb-3">🎯</div>
-                                <h3 className={`text-lg font-bold mb-2 ${
-                                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                                }`}>
+                                <h3 className={`text-lg font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                    }`}>
                                     Keep Up the Great Work!
+
                                 </h3>
-                                <p className={`text-sm ${
-                                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                                }`}>
+                                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                    }`}>
                                     You're doing amazing this semester. Stay focused and keep learning!
                                 </p>
                             </div>
@@ -747,6 +765,13 @@ const Dashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Live Class Creation Modal - RENDERED HERE */}
+            <CreateLiveClassModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onCreateSuccess={handleClassCreationSuccess}
+            />
 
             <style jsx>{`
                 @keyframes fade-in {
