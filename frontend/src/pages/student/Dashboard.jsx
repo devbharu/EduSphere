@@ -639,7 +639,7 @@ const Dashboard = () => {
                                             }`} size={20} />
                                         <span className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'
                                             }`}>
-                                            View Assignments
+                                            View Assessments
                                         </span>
                                     </div>
                                     <ChevronRight className={`transition-transform group-hover:translate-x-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'

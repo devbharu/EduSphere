@@ -15,7 +15,7 @@ const Assignments = () => {
     const navigate = useNavigate();
     const { theme } = useTheme();
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState('assignments'); // 'assignments' or 'assessments'
+    const [activeTab, setActiveTab] = useState('assessment'); // 'assignments' or 'assessments'
 
     // Redirect teachers to upload page
     useEffect(() => {
@@ -54,7 +54,8 @@ const Assignments = () => {
                             <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight ${
                                 theme === 'dark' ? 'text-white' : 'text-gray-900'
                             }`}>
-                                Assignments & Assessments
+                                {/* Assignments & Assessments */}
+                                Assessments
                             </h1>
                             <p className={`text-sm mt-1 ${
                                 theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
@@ -65,7 +66,7 @@ const Assignments = () => {
                     </div>
 
                     {/* Tab Switcher */}
-                    <div className="flex gap-2">
+                    {/* <div className="flex gap-2">
                         <button
                             onClick={() => setActiveTab('assignments')}
                             className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
@@ -96,7 +97,7 @@ const Assignments = () => {
                             <ClipboardCheck size={18} />
                             <span>Assessments</span>
                         </button>
-                    </div>
+                    </div> */}
                 </div>
             </div>
 
