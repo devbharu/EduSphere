@@ -24,7 +24,9 @@ import {
     Target,
     Sparkles,
     Menu,
-    X
+    X,
+    Pen,
+    HandCoins
 } from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
 
@@ -627,6 +629,29 @@ const Dashboard = () => {
                                 </button>
 
                                 <button
+                                    onClick={() => navigate('/docs')}
+                                    className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${
+                                        theme === 'dark'
+                                            ? 'bg-gray-700/50 hover:bg-gray-700'
+                                            : 'bg-gray-50 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <Pen className={`${
+                                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                                        }`} size={20} />
+                                        <span className={`font-medium ${
+                                            theme === 'dark' ? 'text-white' : 'text-gray-900'
+                                        }`}>
+                                            Doodle
+                                        </span>
+                                    </div>
+                                    <ChevronRight className={`transition-transform group-hover:translate-x-1 ${
+                                        theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                                    }`} size={20} />
+                                </button>
+
+                                <button
                                     onClick={() => navigate('/chat')}
                                     className={`w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 group hover:scale-[1.02] ${
                                         theme === 'dark'
@@ -658,7 +683,7 @@ const Dashboard = () => {
                                     }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <MessageSquare className={`${
+                                        <HandCoins className={`${
                                             theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                                         }`} size={20} />
                                         <span className={`font-medium ${
